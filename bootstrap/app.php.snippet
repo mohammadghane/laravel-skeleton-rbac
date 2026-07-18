@@ -1,0 +1,33 @@
+<?php
+
+/**
+ * This is NOT a standalone file to drop in — it shows the edits to make in your
+ * existing bootstrap/app.php (Laravel 11's new app-bootstrap file) to wire up this module.
+ */
+
+use App\Http\Middleware\CheckPermission;
+use App\Http\Middleware\SetLocale;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Middleware;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__ . '/../routes/web.php',
+        commands: __DIR__ . '/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware) {
+        // Register the alias used by `->middleware('permission:admin/users')` in routes/acl.php.
+        $middleware->alias([
+            'permission' => CheckPermission::class,
+        ]);
+
+        // Applies the locale stored in session (set via the /locale/{locale} route) to every
+        // web request, so app()->getLocale() and __() reflect the user's choice on every page.
+        $middleware->web(append: [
+            SetLocale::class,
+        ]);
+    })
+    ->withExceptions(function ($exceptions) {
+        //
+    })->create();
