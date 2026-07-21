@@ -40,4 +40,18 @@ return [
             ],
         ],
     ],
+    'overtime' => [
+        'title' => 'اضافه‌کار پرسنل',
+        'perms' => [
+            'general' => [
+                'title' => 'دسترسی‌های عمومی',
+                'items' => [
+                    'overtime/hr-manage' => ['title' => 'مدیریت پارامترهای اضافه‌کار (منابع انسانی)'],
+                    'overtime/ceo-approve' => ['title' => 'تایید نهایی اضافه‌کار (مدیرعامل)'],
+                    'overtime/org-chart-manage' => ['title' => 'مدیریت چارت سازمانی (واحد/معاونت/سمت/قرارداد)'],
+                    'overtime/reports' => ['title' => 'مشاهده گزارش‌های اضافه‌کار'],
+                ],
+            ],
+        ],
+    ],
 ];
