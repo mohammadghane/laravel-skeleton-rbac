@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\ContractType;
 use App\Models\Deputy;
 use App\Models\OvertimePeriod;
 use App\Models\Position;
@@ -19,31 +18,34 @@ use Illuminate\Support\Collection;
 class OvertimeReportService
 {
     /**
-     * مصرف اضافه‌کار عادی به تفکیک نوع قرارداد، در یک محدوده (واحد/معاونت/کل سازمان).
+     * مصرف اضافه‌کار عادی به تفکیک **سمت سازمانی**، در یک محدوده (واحد/معاونت/کل سازمان).
      * دقیقاً یکی از unitId/deputyId را پاس بدهید؛ هیچ‌کدام = کل سازمان.
+     *
+     * از بازنگری بند ۴.۲ به بعد، مبنای سقف عادی «سمت» است نه «نوع قرارداد»؛ بنابراین
+     * گزارش مصرف هم باید بر همان مبنا گروه‌بندی شود تا با موتور سقف هم‌خوان باشد.
      */
-    public function normalConsumptionByContractType(int $year, int $month, ?int $unitId = null, ?int $deputyId = null): Collection
+    public function normalConsumptionByPosition(int $year, int $month, ?int $unitId = null, ?int $deputyId = null): Collection
     {
-        $personnelQuery = $this->scopedPersonnelQuery($unitId, $deputyId)->whereNotNull('contract_type_id');
+        $personnelQuery = $this->scopedPersonnelQuery($unitId, $deputyId)->whereNotNull('position_id');
 
-        return ContractType::query()
-            ->whereIn('id', (clone $personnelQuery)->pluck('contract_type_id')->unique())
+        return Position::query()
+            ->whereIn('id', (clone $personnelQuery)->pluck('position_id')->unique())
             ->get()
-            ->map(function (ContractType $contractType) use ($year, $month, $personnelQuery) {
-                $headcount = (clone $personnelQuery)->where('contract_type_id', $contractType->id)->count();
-                $ceilingVersion = $contractType->ceilingFor($year, $month);
-                $ceilingPerPerson = (string) ($ceilingVersion->ceiling_per_person ?? '0');
+            ->map(function (Position $position) use ($year, $month, $personnelQuery) {
+                $headcount = (clone $personnelQuery)->where('position_id', $position->id)->count();
+                $ceilingVersion = $position->ceilingFor($year, $month);
+                $ceilingPerPerson = (string) ($ceilingVersion->manager_ceiling_per_person ?? '0');
                 $totalCeiling = bcmul((string) $headcount, $ceilingPerPerson, 2);
 
                 $used = (string) (OvertimePeriod::query()
                     ->join('users', 'users.id', '=', 'overtime_periods.personnel_id')
                     ->where('overtime_periods.jalali_year', $year)
                     ->where('overtime_periods.jalali_month', $month)
-                    ->where('users.contract_type_id', $contractType->id)
+                    ->where('users.position_id', $position->id)
                     ->whereIn('users.id', (clone $personnelQuery)->pluck('id'))
                     ->sum('overtime_periods.normal_hours') ?: '0');
 
-                return $this->buildConsumptionRow($contractType->id, $contractType->title, $headcount, $totalCeiling, $used);
+                return $this->buildConsumptionRow($position->id, $position->title, $headcount, $totalCeiling, $used);
             })
             ->values();
     }
@@ -122,7 +124,7 @@ class OvertimeReportService
         $warnings = collect();
 
         foreach (Unit::where('is_active', true)->get() as $unit) {
-            foreach ($this->normalConsumptionByContractType($year, $month, unitId: $unit->id) as $row) {
+            foreach ($this->normalConsumptionByPosition($year, $month, unitId: $unit->id) as $row) {
                 if ($row['percentage'] >= $thresholdPercent) {
                     $warnings->push($this->buildWarningRow('unit', $unit->id, $unit->title, $row));
                 }
@@ -130,7 +132,7 @@ class OvertimeReportService
         }
 
         foreach (Deputy::where('is_active', true)->get() as $deputy) {
-            foreach ($this->normalConsumptionByContractType($year, $month, deputyId: $deputy->id) as $row) {
+            foreach ($this->normalConsumptionByPosition($year, $month, deputyId: $deputy->id) as $row) {
                 if ($row['percentage'] >= $thresholdPercent) {
                     $warnings->push($this->buildWarningRow('deputy-normal', $deputy->id, $deputy->title, $row));
                 }

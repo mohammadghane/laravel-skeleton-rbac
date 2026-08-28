@@ -3,12 +3,13 @@
 namespace App\Support;
 
 use Carbon\Carbon;
+use Morilog\Jalali\CalendarUtils;
 
 /**
- * Wrapper نازک روی پکیج sallar/jdf (کلاس استاتیک Jdf) تا در کل پروژه یکدست استفاده شود
- * و اگر بعداً پکیج تقویم عوض شد، فقط همین فایل تغییر کند.
+ * Wrapper نازک روی پکیج morilog/jalali تا در کل پروژه یکدست استفاده شود و اگر بعداً پکیج
+ * تقویم عوض شد، فقط همین فایل تغییر کند.
  *
- * نصب: composer require sallar/jdf
+ * نصب: composer require morilog/jalali
  */
 class Jalali
 {
@@ -17,13 +18,11 @@ class Jalali
     {
         $date ??= Carbon::now();
 
-        [$jy, $jm, $jd] = \Jdf::gregorian_to_jalali(
+        return CalendarUtils::toJalali(
             (int) $date->format('Y'),
             (int) $date->format('m'),
             (int) $date->format('d')
         );
-
-        return [$jy, $jm, $jd];
     }
 
     public static function currentYear(): int

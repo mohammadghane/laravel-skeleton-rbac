@@ -56,7 +56,15 @@ document.addEventListener('click', async (e) => {
                 toast(await readErrorMessage(res));
                 return;
             }
-            document.querySelector('#admin-modal .modal-body').innerHTML = await res.text();
+            const body = document.querySelector('#admin-modal .modal-body');
+            body.innerHTML = await res.text();
+
+            // Alpine only scans the DOM on load; markup injected afterwards via innerHTML
+            // stays inert unless we ask it to initialise this subtree. Without this the
+            // x-data components inside modal forms (e.g. the roles multiselect) silently
+            // do nothing.
+            if (window.Alpine?.initTree) window.Alpine.initTree(body);
+
             openAdminModal();
         } catch {
             toast(t('connectionFailed', 'اتصال به سرور برقرار نشد.'));
@@ -101,8 +109,10 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Delegate submit for any form loaded into the modal, or a full page (e.g. settings).
+// `.js-ajax-form` is the generic opt-in hook — prefer it for new forms (the overtime module
+// uses it throughout) so this list doesn't have to grow an id per screen.
 document.addEventListener('submit', async (e) => {
-    const form = e.target.closest('#role-form, #user-form, #perms-form, #settings-form');
+    const form = e.target.closest('#role-form, #user-form, #perms-form, #settings-form, .js-ajax-form');
     if (!form) return;
     e.preventDefault();
 

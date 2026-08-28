@@ -11,13 +11,34 @@ use Illuminate\Support\Facades\Route;
  */
 Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(function () {
 
-    // Generic post-login landing spot: send admins to the users grid, everyone
-    // else to their own profile. Swap for a real dashboard view when you have one.
-    Route::get('/', function (\Illuminate\Http\Request $request) {
-        return $request->user()->hasPermission('admin/users')
+    /**
+     * صفحه‌ی فرود پس از ورود. اولویت با داشبورد اضافه‌کار است (تنها داشبورد واقعی
+     * پروژه)؛ اگر کاربر به آن دسترسی نداشت، به فهرست کاربران و در نهایت پروفایل خودش
+     * هدایت می‌شود.
+     *
+     * `/admin/dashboard` هم به‌عنوان نام آشنا پذیرفته می‌شود تا کاربری که مستقیم آن را
+     * تایپ می‌کند به ۴۰۴ نخورد.
+     */
+    $landing = function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+
+        $canSeeOvertimeDashboard = $user->hasPermission('overtime/hr-manage')
+            || $user->hasPermission('overtime/ceo-approve')
+            || $user->hasPermission('overtime/reports')
+            || $user->isUnitManager()
+            || $user->isDeputyHead();
+
+        if ($canSeeOvertimeDashboard) {
+            return redirect()->route('admin.overtime.dashboard');
+        }
+
+        return $user->hasPermission('admin/users')
             ? redirect()->route('admin.users.index')
             : redirect()->route('admin.profile');
-    })->name('dashboard');
+    };
+
+    Route::get('/', $landing)->name('dashboard');
+    Route::get('/dashboard', $landing)->name('dashboard.alias');
 
     Route::prefix('roles')->name('roles.')->middleware('permission:admin/roles')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->name('index');

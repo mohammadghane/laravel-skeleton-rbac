@@ -7,6 +7,7 @@ use App\Models\Deputy;
 use App\Models\Unit;
 use App\Services\OvertimeReportService;
 use App\Support\Jalali;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,13 +25,72 @@ class OvertimeReportController extends Controller
     {
     }
 
-    /** جدول مصرف سقف عادی (به تفکیک نوع قرارداد) و در صورت وجود، سقف مازاد (به تفکیک سمت). */
+    /**
+     * داشبورد مدیریتی (بند ۴.۷): مصرف سقف به تفکیک گروه، هشدارها، مقایسه‌ی معاونت‌ها،
+     * رتبه‌بندی پرسنل و روند چند ماه اخیر - همه در یک صفحه.
+     *
+     * هر بخش بسته به دسترسی کاربر نمایش داده می‌شود؛ هشدارها و مقایسه‌ی معاونت‌ها فقط
+     * برای HR/مدیرعامل معنا دارند (دید کل سازمان لازم دارند).
+     */
+    public function dashboard(Request $request): View
+    {
+        $user = $request->user();
+        [$year, $month] = $this->period($request);
+        [$unitId, $deputyId] = $this->resolveScope($request);
+
+        $isPrivileged = $user->hasPermission('overtime/hr-manage') || $user->hasPermission('overtime/ceo-approve');
+
+        return view('admin.overtime.reports.dashboard', [
+            'year' => $year,
+            'month' => $month,
+            'isPrivileged' => $isPrivileged,
+            'normal' => $this->reports->normalConsumptionByPosition($year, $month, $unitId, $deputyId),
+            'excess' => $unitId ? collect() : $this->reports->excessConsumptionByPosition($year, $month, $deputyId),
+            'warnings' => $isPrivileged ? $this->reports->ceilingWarnings($year, $month) : collect(),
+            'comparison' => $isPrivileged ? $this->reports->deputyComparison($year, $month) : collect(),
+            'ranking' => $this->reports->ranking($year, $month, $isPrivileged ? null : $deputyId)->take(10),
+            'history' => $this->reports->monthlyHistory($unitId, $deputyId, 6),
+            'missing' => $this->reports->personnelWithoutRecord($year, $month, $unitId, $deputyId),
+        ]);
+    }
+
+    /** گزارش ماهانه‌ی تفصیلی پرسنل - جدول کامل با امکان خروجی اکسل. */
+    public function personnelPage(Request $request): View
+    {
+        [$year, $month] = $this->period($request);
+        [$unitId, $deputyId] = $this->resolveScope($request);
+
+        $rows = $this->reports->personnelReport($year, $month, $unitId, $deputyId);
+
+        // جست‌وجو روی خروجی گزارش (که از قبل در حافظه است) - نام پرسنل، واحد یا سمت.
+        if ($request->filled('q')) {
+            $term = mb_strtolower((string) $request->input('q'));
+
+            $rows = $rows->filter(function (array $row) use ($term) {
+                $haystack = mb_strtolower(implode(' ', array_filter([
+                    $row['personnel_name'] ?? '', $row['unit'] ?? '', $row['deputy'] ?? '',
+                    $row['position'] ?? '', $row['contract_type'] ?? '',
+                ])));
+
+                return str_contains($haystack, $term);
+            })->values();
+        }
+
+        return view('admin.overtime.reports.personnel', [
+            'year' => $year,
+            'month' => $month,
+            'rows' => $rows,
+            'canExport' => $request->user()->hasPermission('overtime/hr-manage'),
+        ]);
+    }
+
+    /** جدول مصرف سقف عادی و مازاد - هر دو به تفکیک سمت سازمانی (بازنگری بند ۴.۲). */
     public function consumption(Request $request): JsonResponse
     {
         [$year, $month] = $this->period($request);
         [$unitId, $deputyId] = $this->resolveScope($request);
 
-        $data = ['normal' => $this->reports->normalConsumptionByContractType($year, $month, $unitId, $deputyId)];
+        $data = ['normal' => $this->reports->normalConsumptionByPosition($year, $month, $unitId, $deputyId)];
 
         // مصرف مازاد فقط در سطح معاونت/کل سازمان معنا دارد، نه یک واحد به‌تنهایی
         if (!$unitId) {

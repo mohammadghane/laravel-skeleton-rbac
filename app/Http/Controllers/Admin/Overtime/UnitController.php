@@ -4,21 +4,50 @@ namespace App\Http\Controllers\Admin\Overtime;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\UnitRequest;
+use App\Models\Deputy;
 use App\Models\Unit;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class UnitController extends Controller
 {
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): View
     {
         $units = Unit::with(['deputy', 'manager'])
             ->when($request->filled('deputy_id'), fn ($q) => $q->where('deputy_id', $request->input('deputy_id')))
+            ->when($request->filled('q'), fn ($q) => $q->where('title', 'like', '%' . $request->input('q') . '%'))
             ->orderBy('title')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $units]);
+        $deputies = Deputy::orderBy('title')->get();
+
+        if ($request->ajax() && $request->boolean('rows_only')) {
+            return view('admin.overtime.units.partials.table', compact('units'));
+        }
+
+        return view('admin.overtime.units.index', compact('units', 'deputies'));
+    }
+
+    public function edit(Request $request, ?Unit $unit = null): View
+    {
+        $data = [
+            'unit' => $unit,
+            'deputies' => Deputy::orderBy('title')->get(),
+            'candidates' => User::orderBy('name')->get(['id', 'name', 'family', 'username']),
+        ];
+
+        if ($request->ajax()) {
+            return view('admin.overtime.units.form', $data);
+        }
+
+        return view('admin.modal-page', [
+            'title' => $unit?->exists ? __('ویرایش واحد') : __('واحد جدید'),
+            'view' => 'admin.overtime.units.form',
+            'data' => $data,
+        ]);
     }
 
     public function store(UnitRequest $request): JsonResponse

@@ -45,6 +45,34 @@
         };
     </script>
 
+    {{-- کامپوننت انتخاب چندگانه (فعلاً برای «نقش سازمانی» در فرم کاربر).
+         باید پیش از بارگذاری Alpine تعریف شود تا وقتی فرم داخل مودال با fetch لود
+         می‌شود، x-data بتواند آن را پیدا کند. --}}
+    <script>
+        function rolePicker(options, initial) {
+            return {
+                options: options,
+                selected: initial,
+                query: '',
+                open: false,
+                labelOf(id) {
+                    const match = this.options.find(o => o.id === id);
+                    return match ? match.name : id;
+                },
+                filtered() {
+                    const q = this.query.trim().toLowerCase();
+                    return q ? this.options.filter(o => o.name.toLowerCase().includes(q)) : this.options;
+                },
+                toggle(id) {
+                    this.selected = this.selected.includes(id)
+                        ? this.selected.filter(x => x !== id)
+                        : [...this.selected, id];
+                    this.query = '';
+                },
+            };
+        }
+    </script>
+
     {{-- Alpine.js — declarative state for the sidebar drawer, profile menu, and toasts (no build step). --}}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
@@ -104,7 +132,7 @@
                             {{ request()->routeIs('admin.users.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
                     >
                         <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        {{ __('کاربران') }}
+                        {{ __('پرسنل') }}
                     </a>
                 @endpermission
 
@@ -138,6 +166,120 @@
                     <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
                     {{ __('تنظیمات') }}
                 </a>
+
+                {{-- ماژول اضافه‌کار پرسنل. هر آیتم بر اساس نقش واقعی کاربر در چارت سازمانی یا
+                     permission او نمایش داده می‌شود، نه برای همه. --}}
+                @php
+                    $canSeeOvertime = auth()->check() && (
+                        auth()->user()->hasPermission('overtime/hr-manage')
+                        || auth()->user()->hasPermission('overtime/ceo-approve')
+                        || auth()->user()->hasPermission('overtime/org-chart-manage')
+                        || auth()->user()->hasPermission('overtime/reports')
+                        || auth()->user()->isUnitManager()
+                        || auth()->user()->isDeputyHead()
+                    );
+                @endphp
+
+                @if ($canSeeOvertime)
+                    <p class="px-3 pb-2 pt-4 text-xs font-medium text-white/40">{{ __('اضافه‌کار پرسنل') }}</p>
+
+                    <a
+                        href="{{ route('admin.overtime.periods.index') }}"
+                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                            {{ request()->routeIs('admin.overtime.periods.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                        {{ __('ثبت و تایید اضافه‌کار') }}
+                    </a>
+
+                    <a
+                        href="{{ route('admin.overtime.dashboard') }}"
+                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                            {{ request()->routeIs('admin.overtime.dashboard') || request()->routeIs('admin.overtime.reports.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                        {{ __('داشبورد و گزارش‌ها') }}
+                    </a>
+
+                    {{-- واگذاری ظرفیت مازاد: هم HR و هم خودِ معاون به آن دسترسی دارند. --}}
+                    @if (auth()->user()->hasPermission('overtime/hr-manage') || auth()->user()->isDeputyHead())
+                        <a
+                            href="{{ route('admin.overtime.capacity-transfers.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.capacity-transfers.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('واگذاری ظرفیت مازاد') }}
+                        </a>
+                    @endif
+
+                    @permission('overtime/hr-manage')
+                        <a
+                            href="{{ route('admin.overtime.special-items.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.special-items.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('آیتم‌های ویژه') }}
+                        </a>
+
+                        <a
+                            href="{{ route('admin.overtime.import.form') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.import.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('ورود اطلاعات از اکسل') }}
+                        </a>
+
+                        <a
+                            href="{{ route('admin.overtime.sync.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.sync.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('همگام‌سازی پرسنل') }}
+                        </a>
+                    @endpermission
+
+                    @permission('overtime/org-chart-manage')
+                        <a
+                            href="{{ route('admin.overtime.contract-types.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.contract-types.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('انواع قرارداد و سقف‌ها') }}
+                        </a>
+
+                        <a
+                            href="{{ route('admin.overtime.positions.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.positions.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('سمت‌های سازمانی') }}
+                        </a>
+
+                        <a
+                            href="{{ route('admin.overtime.deputies.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.deputies.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('معاونت‌ها') }}
+                        </a>
+
+                        <a
+                            href="{{ route('admin.overtime.units.index') }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
+                                {{ request()->routeIs('admin.overtime.units.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                            {{ __('واحدهای سازمانی') }}
+                        </a>
+                    @endpermission
+                @endif
 
                 @yield('sidebar-extra')
             </nav>

@@ -13,11 +13,12 @@ class ContractTypeCeilingVersion extends Model
 
     protected $fillable = [
         'contract_type_id', 'jalali_year', 'jalali_month',
-        'ceiling_per_person', 'activation_day', 'created_by',
+        'ceiling_per_person', 'overall_ceiling', 'activation_day', 'created_by',
     ];
 
     protected $casts = [
         'ceiling_per_person' => 'decimal:2',
+        'overall_ceiling' => 'decimal:2',
     ];
 
     public function auditLabel(): string

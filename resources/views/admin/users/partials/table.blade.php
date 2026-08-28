@@ -4,7 +4,10 @@
             <tr class="border-b border-line text-xs text-ink/50">
                 <th class="px-5 py-3 font-medium">{{ __('نام و نام خانوادگی') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('نام کاربری') }}</th>
-                <th class="px-5 py-3 font-medium">{{ __('ساناکد') }}</th>
+                {{-- کد پرسنلی جایگزین «ساناکد» شد: با همگام‌سازی وب‌سرویس مقداردهی می‌شود
+                     و برای تطبیق فایل‌های اکسل (کسر کار/ماموریت) هم همین کد مبناست. --}}
+                <th class="px-5 py-3 font-medium">{{ __('کد پرسنلی') }}</th>
+                <th class="px-5 py-3 font-medium">{{ __('سمت سازمانی') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('موبایل') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('تاریخ ثبت') }}</th>
                 <th class="px-5 py-3 font-medium"></th>
@@ -15,7 +18,8 @@
                 <tr class="hover:bg-surface/60">
                     <td class="px-5 py-3.5 font-medium text-ink">{{ $user->name }} {{ $user->family }}</td>
                     <td class="px-5 py-3.5 text-ink/60">{{ $user->username }}</td>
-                    <td class="px-5 py-3.5 font-mono text-xs text-ink/50">{{ $user->sana_code }}</td>
+                    <td class="px-5 py-3.5 font-mono text-xs text-ink/50">{{ $user->personnel_code ?: '—' }}</td>
+                    <td class="px-5 py-3.5 text-xs text-ink/60">{{ $user->position?->title ?: '—' }}</td>
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/60">{{ $user->cell }}</td>
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/50">{{ $user->created_at?->format('Y/m/d H:i') }}</td>
                     <td class="px-5 py-3.5">
@@ -26,7 +30,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
+                <tr><td colspan="7" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
             @endforelse
         </tbody>
     </table>

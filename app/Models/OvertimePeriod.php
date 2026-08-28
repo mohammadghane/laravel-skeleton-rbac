@@ -22,7 +22,7 @@ class OvertimePeriod extends Model
         'personnel_id', 'jalali_year', 'jalali_month', 'status',
         'normal_hours', 'normal_ceiling_snapshot',
         'excess_hours', 'excess_ceiling_snapshot',
-        'rial_coefficient', 'worked_days_count',
+        'rial_coefficient', 'worked_days_count', 'deduction_hours', 'mission_hours',
         'unit_id_snap', 'unit_title_snap',
         'deputy_id_snap', 'deputy_title_snap',
         'position_id_snap', 'position_title_snap',
@@ -33,6 +33,13 @@ class OvertimePeriod extends Model
         'finalized_at',
     ];
 
+    // هم‌تراز با default ستون status در مهاجرت. بدون این، یک رکورد تازه‌ساخته‌شده که
+    // status را صریحاً ست نکرده باشد در حافظه null می‌ماند (تا وقتی از DB دوباره خوانده
+    // شود) و هر فراخوانی مثل $period->status->editableByManager() با خطا مواجه می‌شود.
+    protected $attributes = [
+        'status' => 'draft',
+    ];
+
     protected $casts = [
         'status' => OvertimePeriodStatus::class,
         'normal_hours' => 'decimal:2',
@@ -40,6 +47,8 @@ class OvertimePeriod extends Model
         'excess_hours' => 'decimal:2',
         'excess_ceiling_snapshot' => 'decimal:2',
         'rial_coefficient' => 'decimal:2',
+        'deduction_hours' => 'decimal:2',
+        'mission_hours' => 'decimal:2',
         'manager_locked_at' => 'datetime',
         'deputy_reviewed_at' => 'datetime',
         'ceo_reviewed_at' => 'datetime',
@@ -96,7 +105,11 @@ class OvertimePeriod extends Model
         return $this->hasMany(OvertimeStatusHistory::class)->latest();
     }
 
-    /** جمع ساعت اضافه‌کار نهایی این پرسنل برای این ماه = عادی + مازاد + مجموع آیتم‌های ویژه. */
+    /**
+     * جمع «خام» ساعت اضافه‌کار این پرسنل برای این ماه = عادی + مازاد + مجموع آیتم‌های ویژه.
+     * این عدد بدون اعمال سقف کلی قرارداد است و برای نمایش «آنچه واقعاً ثبت شده» به‌کار می‌رود.
+     * برای عددی که باید به واحد مالی برود از payableHours() استفاده کنید.
+     */
     public function totalHours(): string
     {
         $specialTotal = $this->specialItemLines->sum('hours');
@@ -106,6 +119,58 @@ class OvertimePeriod extends Model
             (string) $specialTotal,
             2
         );
+    }
+
+    /**
+     * سقف کلی قرارداد این پرسنل برای این ماه (بند ۴.۲) - از نسخه‌ی سقفِ همان ماه خوانده
+     * می‌شود. null یعنی HR سقف کلی تعریف نکرده و در نتیجه هیچ capping ای اعمال نمی‌شود.
+     *
+     * نکته: عمداً از contract_type_id_snap (نه قرارداد فعلی پرسنل) استفاده می‌شود تا گزارش
+     * ماه‌های گذشته با تغییر بعدیِ نوع قرارداد پرسنل عوض نشود (الزام ردیابی بند ۵).
+     */
+    public function overallCeiling(): ?string
+    {
+        $contractType = $this->contractTypeSnap ?? $this->personnel?->contractType;
+
+        $ceiling = $contractType?->ceilingFor($this->jalali_year, $this->jalali_month)?->overall_ceiling;
+
+        return $ceiling !== null ? (string) $ceiling : null;
+    }
+
+    /**
+     * عددی که باید به سیستم مالی ارسال شود (بند ۴.۲):
+     * «مجموع اضافه کار یک پرسنل شامل اضافه کار در اختیار مدیر + اضافه کار در اختیار معاونت
+     *  + مجموع آیتم های ویژه نباید از سقف مجاز کلی قرارداد پرسنل تجاوز کند و در صورتی که از
+     *  عدد سقف تعیین شده بیشتر شود مقدار سقف مجاز برای ارسال به واحد مالی در نظر گرفته میشود.»
+     *
+     * یعنی: min(مجموع خام، سقف کلی قرارداد). ساعت خام در DB دست‌نخورده می‌ماند.
+     */
+    public function payableHours(): string
+    {
+        $total = $this->totalHours();
+        $ceiling = $this->overallCeiling();
+
+        if ($ceiling === null) {
+            return $total;
+        }
+
+        return bccomp($total, $ceiling, 2) === 1 ? $ceiling : $total;
+    }
+
+    /** آیا مجموع خام این پرسنل از سقف کلی قراردادش عبور کرده و در خروجی مالی کسر می‌شود؟ */
+    public function exceedsOverallCeiling(): bool
+    {
+        $ceiling = $this->overallCeiling();
+
+        return $ceiling !== null && bccomp($this->totalHours(), $ceiling, 2) === 1;
+    }
+
+    /** مقدار ساعتی که به‌دلیل عبور از سقف کلی قرارداد، به واحد مالی ارسال نمی‌شود. */
+    public function cappedHours(): string
+    {
+        return $this->exceedsOverallCeiling()
+            ? bcsub($this->totalHours(), (string) $this->overallCeiling(), 2)
+            : '0.00';
     }
 
     public function periodLabel(): string

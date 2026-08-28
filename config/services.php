@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    /*
+     * وب‌سرویس پرسنلی سازمان - مبدأ همگام‌سازی پرسنل، انواع قرارداد و سمت‌ها.
+     * نگاه کنید به App\Services\PersonnelSyncService و دستور overtime:sync-personnel.
+     */
+    'personnel' => [
+        'url' => env('PERSONNEL_SYNC_URL', 'http://127.0.0.1/api/getpersonels.json'),
+        'timeout' => env('PERSONNEL_SYNC_TIMEOUT', 30),
+        // دامنه‌ی ایمیل جایگزین: سرویس ایمیل نمی‌دهد ولی ستون NOT NULL است.
+        'email_domain' => env('PERSONNEL_EMAIL_DOMAIN', 'personnel.local'),
+    ],
+
 ];

@@ -6,13 +6,38 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\SpecialItemRequest;
 use App\Models\SpecialItem;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class SpecialItemController extends Controller
 {
 
-    public function index(): JsonResponse
+    public function index(Request $request): View
     {
-        return response()->json(['success' => true, 'data' => SpecialItem::orderBy('title')->get()]);
+        $items = SpecialItem::withCount('eligiblePersonnel')
+            ->when($request->filled('q'), fn ($q) => $q->where('title', 'like', '%' . $request->input('q') . '%'))
+            ->orderBy('title')->get();
+
+        if ($request->ajax() && $request->boolean('rows_only')) {
+            return view('admin.overtime.special-items.partials.table', compact('items'));
+        }
+
+        return view('admin.overtime.special-items.index', compact('items'));
+    }
+
+    public function edit(Request $request, ?SpecialItem $specialItem = null): View
+    {
+        $data = ['item' => $specialItem];
+
+        if ($request->ajax()) {
+            return view('admin.overtime.special-items.form', $data);
+        }
+
+        return view('admin.modal-page', [
+            'title' => $specialItem?->exists ? __('ویرایش آیتم ویژه') : __('آیتم ویژه‌ی جدید'),
+            'view' => 'admin.overtime.special-items.form',
+            'data' => $data,
+        ]);
     }
 
     public function store(SpecialItemRequest $request): JsonResponse

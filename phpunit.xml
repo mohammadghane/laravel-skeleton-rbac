@@ -3,6 +3,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
+         displayDetailsOnTestsThatTriggerDeprecations="false"
 >
     <testsuites>
         <testsuite name="Unit">
@@ -22,8 +23,18 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
-        <!-- <env name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <env name="DB_DATABASE" value=":memory:"/> -->
+        <!-- افزونه‌ی pdo_sqlite روی این سرور نصب نیست، بنابراین تست‌ها روی یک دیتابیس
+             MySQL جداگانه اجرا می‌شوند (که به موتور واقعی پروداکشن هم نزدیک‌تر است).
+             ساخت یک‌باره: CREATE DATABASE overtime_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="overtime_test"/>
+        <!-- لاگ تست‌ها به stderr می‌رود نه فایل: اگر مالکیت storage/logs با کاربر اجراکننده
+             فرق کند، خطای «Permission denied» خطای واقعیِ تست را پنهان می‌کرد. -->
+        <env name="LOG_CHANNEL" value="stderr"/>
+        <!-- کش ویوی تست‌ها در پوشه‌ی موقت سیستم، به همان دلیل بالا: اگر storage متعلق به
+             www-data باشد (مثلاً پس از اجرای deploy.sh)، تست‌ها نمی‌توانند Blade را کامپایل
+             کنند و همه‌ی درخواست‌ها ۵۰۰ می‌شوند. -->
+        <env name="VIEW_COMPILED_PATH" value="/tmp/overtime-test-views"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

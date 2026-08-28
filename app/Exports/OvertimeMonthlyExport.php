@@ -54,13 +54,21 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
     {
         $fixed = [
             'کد پرسنلی', 'نام و نام خانوادگی', 'کد ملی', 'معاونت', 'واحد', 'نوع قرارداد', 'سمت سازمانی',
-            'دوره (ماه شمسی)', 'تعداد روز کارکرد ماه', 'ضریب ریالی',
+            'دوره (ماه شمسی)', 'تعداد روز کارکرد ماه', 'ضریب ریالی', 'کسر کار (ساعت)', 'ماموریت (ساعت)',
             'اضافه‌کار عادی (ساعت)', 'اضافه‌کار مازاد (ساعت)',
         ];
 
         $specialItemHeadings = $this->specialItems->pluck('title')->map(fn ($t) => $t . ' (ساعت)')->all();
 
-        return array_merge($fixed, $specialItemHeadings, ['جمع کل ساعت اضافه‌کار', 'وضعیت']);
+        // «جمع خام» و «سقف کلی» و «مازاد بر سقف» فقط جهت شفافیت و ردیابی می‌آیند؛ ستونی که
+        // سیستم مالی باید مبنای فیش حقوقی قرار دهد «ساعت قابل پرداخت» است (بند ۴.۲).
+        return array_merge($fixed, $specialItemHeadings, [
+            'جمع کل ساعت اضافه‌کار (خام)',
+            'سقف کلی قرارداد',
+            'مازاد بر سقف (کسرشده)',
+            'ساعت قابل پرداخت',
+            'وضعیت',
+        ]);
     }
 
     public function map($period): array
@@ -77,6 +85,8 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
             Jalali::periodLabel($period->jalali_year, $period->jalali_month),
             $period->worked_days_count,
             $period->rial_coefficient,
+            $period->deduction_hours,
+            $period->mission_hours,
             (string) $period->normal_hours,
             (string) $period->excess_hours,
         ];
@@ -87,7 +97,13 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
             return $line ? (string) $line->hours : '0';
         })->all();
 
-        return array_merge($fixed, $specialItemValues, [$period->totalHours(), $period->status->label()]);
+        return array_merge($fixed, $specialItemValues, [
+            $period->totalHours(),
+            $period->overallCeiling() ?? '-',
+            $period->cappedHours(),
+            $period->payableHours(),
+            $period->status->label(),
+        ]);
     }
 
     public function styles(Worksheet $sheet): array

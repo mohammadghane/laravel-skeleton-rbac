@@ -20,6 +20,9 @@ class User extends Authenticatable
         // چارت سازمانی ماژول اضافه‌کار (مدیرعامل -> معاونت -> واحد -> پرسنل). center_id/agency_id
         // قدیمی برای این ماژول استفاده نمی‌شوند و عمداً دست‌نخورده مانده‌اند.
         'unit_id', 'deputy_id', 'position_id', 'contract_type_id',
+        // همگام‌سازی با وب‌سرویس پرسنلی: EmpCode و پستِ سازمانی (PostID/PostCode).
+        // پست، جایگاه یک فرد است؛ عنوان شغلی در جدول positions نگهداری می‌شود.
+        'personnel_code', 'post_id', 'post_code', 'synced_at',
     ];
 
     protected $hidden = [

@@ -57,8 +57,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // در PHP 8.5 ثابت‌های PDO::MYSQL_ATTR_* به کلاس Pdo\Mysql منتقل شده‌اند و
+            // ارجاع مستقیم به PDO::MYSQL_ATTR_SSL_CA اخطار Deprecated می‌دهد. برای اینکه
+            // پروژه هم روی PHP 8.2 و هم 8.5 بدون اخطار کار کند، ثابت را در زمان اجرا
+            // تشخیص می‌دهیم.
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                (class_exists(\Pdo\Mysql::class) ? \Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -77,8 +81,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
+            // در PHP 8.5 ثابت‌های PDO::MYSQL_ATTR_* به کلاس Pdo\Mysql منتقل شده‌اند و
+            // ارجاع مستقیم به PDO::MYSQL_ATTR_SSL_CA اخطار Deprecated می‌دهد. برای اینکه
+            // پروژه هم روی PHP 8.2 و هم 8.5 بدون اخطار کار کند، ثابت را در زمان اجرا
+            // تشخیص می‌دهیم.
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                (class_exists(\Pdo\Mysql::class) ? \Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 

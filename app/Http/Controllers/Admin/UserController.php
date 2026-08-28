@@ -19,10 +19,28 @@ class UserController extends Controller
         $currentUser = $request->user();
 
         $users = User::query()
+            // position برای ستون «سمت سازمانی» در جدول - بدون eager load، به‌ازای هر
+            // ردیف یک کوئری اضافه می‌خورد (N+1).
+            ->with('position')
             ->when($currentUser->is_agency, fn ($q) => $q->where('agency_id', $currentUser->id))
             ->when(!$currentUser->isAdmin(), fn ($q) => $q->where('center_id', $currentUser->center_id))
             ->when($request->filled('filters.gender'), fn ($q) => $q->where('gender', $request->input('filters.gender')))
-            ->when($request->filled('filters.city'), fn ($q) => $q->where('city', $request->input('filters.city')))
+            // جست‌وجوی آزاد روی نام، نام خانوادگی، نام کاربری، کد پرسنلی، موبایل و کد ملی.
+            // ورودی پیش‌تر توسط میدل‌ور NormalizePersianInput یکسان شده، پس تایپ با کیبورد
+            // عربی یا ارقام فارسی هم نتیجه می‌دهد.
+            ->when($request->filled('q'), function ($query) use ($request) {
+                $term = '%' . $request->input('q') . '%';
+
+                $query->where(function ($q) use ($term) {
+                    $q->where('name', 'like', $term)
+                        ->orWhere('family', 'like', $term)
+                        ->orWhere('username', 'like', $term)
+                        ->orWhere('personnel_code', 'like', $term)
+                        ->orWhere('cell', 'like', $term)
+                        ->orWhere('national_code', 'like', $term)
+                        ->orWhereRaw("CONCAT(name, ' ', COALESCE(family, '')) LIKE ?", [$term]);
+                });
+            })
             ->orderByDesc('id')
             ->paginate(config('app.page_size', 20))
             ->withQueryString();
@@ -37,7 +55,15 @@ class UserController extends Controller
     public function profile(Request $request): View
     {
         $user = $request->user()->load('roles');
-        $data = ['user' => $user, 'roles' => Role::all(), 'editingSelf' => true];
+        $data = [
+            'user' => $user,
+            'roles' => Role::all(),
+            'editingSelf' => true,
+            'units' => \App\Models\Unit::with('deputy')->orderBy('title')->get(),
+            'deputies' => \App\Models\Deputy::orderBy('title')->get(),
+            'positions' => \App\Models\Position::orderBy('title')->get(),
+            'contractTypes' => \App\Models\ContractType::orderBy('title')->get(),
+        ];
 
         if ($request->ajax()) {
             return view('admin.users.form', $data);
@@ -83,6 +109,11 @@ class UserController extends Controller
             'user' => $user?->load('roles'),
             'roles' => Role::all(),
             'currentRoleIds' => $user?->roles->pluck('id')->all() ?? [],
+            // فیلدهای چارت سازمانی برای ماژول اضافه‌کار (بند ۴.۱)
+            'units' => \App\Models\Unit::with('deputy')->orderBy('title')->get(),
+            'deputies' => \App\Models\Deputy::orderBy('title')->get(),
+            'positions' => \App\Models\Position::orderBy('title')->get(),
+            'contractTypes' => \App\Models\ContractType::orderBy('title')->get(),
         ];
 
         if ($request->ajax()) {
@@ -90,7 +121,7 @@ class UserController extends Controller
         }
 
         return view('admin.modal-page', [
-            'title' => $user ? __('ویرایش کاربر') : __('کاربر جدید'),
+            'title' => $user ? __('ویرایش پرسنل') : __('پرسنل جدید'),
             'view' => 'admin.users.form',
             'data' => $data,
         ]);

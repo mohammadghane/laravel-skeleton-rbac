@@ -10,7 +10,7 @@ class ContractType extends Model
 {
     use Auditable;
 
-    protected $fillable = ['title', 'is_active'];
+    protected $fillable = ['title', 'external_code', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];
 

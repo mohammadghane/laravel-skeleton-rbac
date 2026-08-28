@@ -5,25 +5,54 @@ namespace App\Http\Controllers\Admin\Overtime;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\DeputyRequest;
 use App\Models\Deputy;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 /**
- * CRUD معاونت‌ها. طبق الگوی موجود پروژه (RoleController/UserController)، پاسخ‌ها JSON
- * هستند و روی همان Blade مودال فعلی سوار می‌شوند - این کنترلر view مجزا رندر نمی‌کند.
- * قالب response را با الگوی دقیق کنترلرهای فعلی پروژه (success/message/data) هماهنگ کنید.
+ * CRUD معاونت‌ها، دقیقاً با الگوی UserController/RoleController پروژه:
+ * index یک صفحه‌ی Blade می‌دهد (یا با ajax=rows_only فقط partial جدول)، فرم ایجاد/ویرایش
+ * داخل مودال مشترک `#admin-modal` رندر می‌شود و store/update/destroy پاسخ JSON
+ * `{success, message}` برمی‌گردانند تا public/js/acl-admin.js آن را مدیریت کند.
  */
 class DeputyController extends Controller
 {
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): View
     {
         $deputies = Deputy::with(['head', 'units'])
             ->when($request->filled('q'), fn ($q) => $q->where('title', 'like', '%' . $request->input('q') . '%'))
             ->orderBy('title')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $deputies]);
+        if ($request->ajax() && $request->boolean('rows_only')) {
+            return view('admin.overtime.deputies.partials.table', compact('deputies'));
+        }
+
+        return view('admin.overtime.deputies.index', compact('deputies'));
+    }
+
+    /** فرم ایجاد/ویرایش - داخل مودال مشترک پنل باز می‌شود. */
+    public function edit(Request $request, ?Deputy $deputy = null): View
+    {
+        $data = ['deputy' => $deputy, 'candidates' => $this->headCandidates()];
+
+        if ($request->ajax()) {
+            return view('admin.overtime.deputies.form', $data);
+        }
+
+        return view('admin.modal-page', [
+            'title' => $deputy?->exists ? __('ویرایش معاونت') : __('معاونت جدید'),
+            'view' => 'admin.overtime.deputies.form',
+            'data' => $data,
+        ]);
+    }
+
+    /** کاربرانی که می‌توانند به‌عنوان معاون انتخاب شوند. */
+    private function headCandidates()
+    {
+        return User::orderBy('name')->get(['id', 'name', 'family', 'username']);
     }
 
     public function store(DeputyRequest $request): JsonResponse

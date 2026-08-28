@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\OvertimeCeilingService;
 use App\Services\OvertimePeriodService;
 use App\Support\Jalali;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -35,32 +36,162 @@ class OvertimePeriodController extends Controller
     ) {
     }
 
-    /** فهرست دوره‌های اضافه‌کار در محدوده‌ی دید کاربر جاری برای یک ماه شمسی مشخص. */
-    public function index(Request $request): JsonResponse
+    /**
+     * صفحه‌ی اصلی گردش کار اضافه‌کار برای ماه جاری (یا ماه انتخابی).
+     *
+     * برخلاف بقیه‌ی فهرست‌های پنل، اینجا «پرسنل» مبنا هستند نه رکوردهای موجود: مدیر واحد
+     * باید همه‌ی زیرمجموعه‌اش را ببیند، حتی آن‌هایی که هنوز دوره‌ای برایشان ساخته نشده
+     * (وگرنه امکان ثبت اولیه وجود نداشت). به همین دلیل فهرست پرسنلِ محدوده گرفته می‌شود و
+     * دوره‌ی موجود - در صورت وجود - به هر پرسنل چسبانده می‌شود.
+     */
+    public function index(Request $request): View|JsonResponse
     {
         $user = $request->user();
         $year = (int) $request->input('jalali_year', Jalali::currentYear());
         $month = (int) $request->input('jalali_month', Jalali::currentMonth());
 
-        $query = OvertimePeriod::with(['personnel', 'specialItemLines'])
-            ->where('jalali_year', $year)->where('jalali_month', $month);
+        [$personnel, $role, $scopeTitle] = $this->resolveWorkflowScope($user);
 
-        if ($user->hasPermission('overtime/hr-manage')) {
-            // HR همه چیز را می‌بیند، بدون محدودیت اسکوپ
-        } elseif ($user->hasPermission('overtime/ceo-approve')) {
-            $query->whereIn('status', [OvertimePeriodStatus::DeputyApproved->value, OvertimePeriodStatus::Finalized->value]);
-        } elseif ($user->isDeputyHead()) {
-            $deputy = Deputy::where('head_user_id', $user->id)->firstOrFail();
-            $personnelIds = $deputy->allPersonnelIds();
-            $query->whereIn('personnel_id', $personnelIds);
-        } elseif ($user->isUnitManager()) {
-            $unit = \App\Models\Unit::where('manager_user_id', $user->id)->firstOrFail();
-            $query->where('unit_id_snap', $unit->id);
-        } else {
-            $query->where('personnel_id', $user->id); // هر پرسنل فقط رکورد خودش را می‌بیند
+        $periods = OvertimePeriod::with(['specialItemLines'])
+            ->where('jalali_year', $year)->where('jalali_month', $month)
+            ->whereIn('personnel_id', $personnel->pluck('id'))
+            ->get()
+            ->keyBy('personnel_id');
+
+        // مدیرعامل فقط مواردی را می‌بیند که به مرحله‌ی او رسیده‌اند.
+        if ($role === 'ceo') {
+            $allowed = [OvertimePeriodStatus::DeputyApproved->value, OvertimePeriodStatus::Finalized->value, OvertimePeriodStatus::CeoRejected->value];
+            $periods = $periods->filter(fn (OvertimePeriod $p) => in_array($p->status->value, $allowed, true));
+            $personnel = $personnel->filter(fn ($p) => $periods->has($p->id))->values();
         }
 
-        return response()->json(['success' => true, 'data' => $query->get()]);
+        // جست‌وجو روی نام/کد پرسنلی. چون فهرست پرسنلِ محدوده از قبل در حافظه است، فیلتر
+        // هم روی همان مجموعه انجام می‌شود (نه کوئری جداگانه).
+        if ($request->filled('q')) {
+            $term = mb_strtolower((string) $request->input('q'));
+
+            $personnel = $personnel->filter(function ($p) use ($term) {
+                $haystack = mb_strtolower(trim($p->name . ' ' . $p->family) . ' ' . $p->username . ' ' . $p->personnel_code);
+
+                return str_contains($haystack, $term);
+            })->values();
+        }
+
+        // سازگاری با مصرف‌کننده‌های API که همچنان JSON انتظار دارند.
+        if ($request->wantsJson() && !$request->ajax()) {
+            return response()->json(['success' => true, 'data' => $periods->values()]);
+        }
+
+        return view('admin.overtime.periods.index', [
+            'personnel' => $personnel,
+            'periods' => $periods,
+            'role' => $role,
+            'scopeTitle' => $scopeTitle,
+            'year' => $year,
+            'month' => $month,
+            'specialItems' => SpecialItem::where('is_active', true)->orderBy('title')->get(),
+        ]);
+    }
+
+    /**
+     * محدوده‌ی پرسنل و نقش کاربر جاری در گردش کار را برمی‌گرداند.
+     *
+     * @return array{0:\Illuminate\Support\Collection,1:string,2:string} [پرسنل، نقش، عنوان محدوده]
+     */
+    private function resolveWorkflowScope(User $user): array
+    {
+        $with = ['unit', 'deputy', 'position', 'contractType'];
+
+        if ($user->isUnitManager()) {
+            $unit = \App\Models\Unit::where('manager_user_id', $user->id)->firstOrFail();
+
+            return [
+                User::with($with)->where('unit_id', $unit->id)->orderBy('name')->get(),
+                'manager',
+                __('واحد') . ' ' . $unit->title,
+            ];
+        }
+
+        if ($user->isDeputyHead()) {
+            $deputy = Deputy::where('head_user_id', $user->id)->firstOrFail();
+
+            return [
+                User::with($with)->whereIn('id', $deputy->allPersonnelIds())->orderBy('name')->get(),
+                'deputy',
+                __('معاونت') . ' ' . $deputy->title,
+            ];
+        }
+
+        if ($user->hasPermission('overtime/ceo-approve')) {
+            return [User::with($with)->orderBy('name')->get(), 'ceo', __('کل سازمان')];
+        }
+
+        if ($user->hasPermission('overtime/hr-manage')) {
+            return [User::with($with)->orderBy('name')->get(), 'hr', __('کل سازمان')];
+        }
+
+        // پرسنل عادی: فقط رکورد خودش را می‌بیند.
+        return [User::with($with)->where('id', $user->id)->get(), 'self', __('اضافه‌کار من')];
+    }
+
+    /**
+     * صفحه‌ی جزئیات و اقدام روی اضافه‌کار یک پرسنل در یک ماه.
+     * همه‌ی اقدام‌های گردش کار (ثبت مدیر، بررسی معاونت، تایید مدیرعامل) از همین صفحه انجام
+     * می‌شوند؛ اینکه کدام بخش نمایش داده شود بر اساس نقش کاربر و وضعیت فعلی دوره تعیین می‌گردد.
+     */
+    public function show(Request $request, User $personnel): View
+    {
+        $user = $request->user();
+        $year = (int) $request->input('jalali_year', Jalali::currentYear());
+        $month = (int) $request->input('jalali_month', Jalali::currentMonth());
+
+        $this->assertCanViewPersonnel($user, $personnel);
+
+        $period = OvertimePeriod::with(['specialItemLines', 'statusHistory.actor', 'submittedBy', 'deputyReviewedBy', 'ceoReviewedBy'])
+            ->where('personnel_id', $personnel->id)
+            ->where('jalali_year', $year)->where('jalali_month', $month)
+            ->first();
+
+        $ceilingVersion = $personnel->contractType?->ceilingFor($year, $month);
+
+        return view('admin.overtime.periods.show', [
+            'personnel' => $personnel->load(['unit', 'deputy', 'position', 'contractType']),
+            'period' => $period,
+            'year' => $year,
+            'month' => $month,
+            'specialItems' => SpecialItem::where('is_active', true)->orderBy('title')->get(),
+            'ceilingVersion' => $ceilingVersion,
+            'windowOpen' => (bool) $ceilingVersion?->isRegistrationWindowOpen(),
+            'isManager' => $personnel->unit && $personnel->unit->manager_user_id === $user->id,
+            'isDeputy' => $this->deputyOwns($user, $personnel),
+            'isCeo' => $user->hasPermission('overtime/ceo-approve'),
+            'isHr' => $user->hasPermission('overtime/hr-manage'),
+        ]);
+    }
+
+    /** آیا کاربر جاری اجازه‌ی دیدن اطلاعات این پرسنل را دارد؟ */
+    private function assertCanViewPersonnel(User $user, User $personnel): void
+    {
+        if ($user->id === $personnel->id) {
+            return; // هر کسی رکورد خودش را می‌بیند
+        }
+
+        if ($user->hasPermission('overtime/hr-manage') || $user->hasPermission('overtime/ceo-approve')) {
+            return;
+        }
+
+        if ($personnel->unit && $personnel->unit->manager_user_id === $user->id) {
+            return;
+        }
+
+        abort_unless($this->deputyOwns($user, $personnel), 403, __('این پرسنل در محدوده‌ی دسترسی شما نیست.'));
+    }
+
+    private function deputyOwns(User $user, User $personnel): bool
+    {
+        $deputyId = $personnel->effectiveDeputyId();
+
+        return $deputyId !== null && Deputy::where('id', $deputyId)->where('head_user_id', $user->id)->exists();
     }
 
     /**
@@ -91,7 +222,8 @@ class OvertimePeriodController extends Controller
         }
 
         $period->normal_hours = $request->input('normal_hours');
-        $period->normal_ceiling_snapshot = optional($personnel->contractType?->ceilingFor($year, $month))->ceiling_per_person;
+        // اسنپ‌شات سقف عادی از «سمت سازمانی» گرفته می‌شود (بازنگری بند ۴.۲)، نه نوع قرارداد.
+        $period->normal_ceiling_snapshot = optional($personnel->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
         $period->save();
 
         return response()->json(['success' => true, 'message' => __('اضافه‌کار عادی ثبت شد.'), 'data' => $period]);

@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OvertimeStatusHistory extends Model
 {
+    // «history» جمعِ خودش است و مهاجرت هم جدول را overtime_status_history ساخته؛ بدون این
+    // خط، Eloquent نام را به overtime_status_histories جمع می‌بندد و کوئری خطا می‌دهد.
+    protected $table = 'overtime_status_history';
+
     public $timestamps = false; // فقط created_at لازم است؛ ثابت می‌ماند
 
     const CREATED_AT = 'created_at';
