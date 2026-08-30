@@ -20,11 +20,20 @@
         @include('admin.overtime.partials.search-box', [
             'route' => 'admin.users.index',
             'placeholder' => __('نام، کد پرسنلی، موبایل یا کد ملی…'),
+            // تا جست‌وجو انتخابِ «تعداد در هر صفحه» را صفر نکند.
+            'extra' => ['per_page' => request('per_page')],
         ])
     </div>
 
+    <div x-data="bulkDelete(
+        '{{ route('admin.users.bulk-destroy') }}',
+        '{{ __('حذف :count پرسنل انتخاب‌شده؟ مدیران واحد و معاونان حذف نمی‌شوند.') }}'
+    )">
+        @include('admin.overtime.partials.bulk-delete', ['label' => __('پرسنل')])
+
     <div id="users-table" class="rounded-2xl border border-line bg-white shadow-card">
         @include('admin.users.partials.table', ['users' => $users])
+    </div>
     </div>
 @endsection
 
