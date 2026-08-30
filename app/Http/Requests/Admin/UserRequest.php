@@ -29,7 +29,10 @@ class UserRequest extends FormRequest
             // ورودی در prepareForValidation نرمال‌سازی می‌شود، بنابراین کاربر می‌تواند
             // 9121111111 یا +989121111111 یا 989121111111 هم وارد کند و همه به شکل
             // یکسانِ 09121111111 ذخیره می‌شوند.
-            'cell' => ['required', 'regex:/^09\d{9}$/', Rule::unique('users')->ignore($userId)],
+            // اختیاری است (بسیاری از پرسنلِ آمده از وب‌سرویس شماره موبایل ندارند)، ولی
+            // اگر وارد شود باید فرمت درست و یکتا باشد. `nullable` پیش از `regex` تضمین
+            // می‌کند مقدار خالی اصلاً اعتبارسنجی فرمت نشود.
+            'cell' => ['nullable', 'regex:/^09\d{9}$/', Rule::unique('users')->ignore($userId)],
             'tell' => ['nullable', 'regex:/^0\d{2,3}\d{7,8}$/'],
             'national_code' => ['nullable', 'digits:10', Rule::unique('users')->ignore($userId)],
             'email' => ['nullable', 'email', Rule::unique('users')->ignore($userId)],
@@ -59,11 +62,16 @@ class UserRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        if (!$this->filled('cell')) {
+        if (!$this->has('cell')) {
             return;
         }
 
-        $this->merge(['cell' => self::normalizeCell((string) $this->input('cell'))]);
+        $cell = self::normalizeCell((string) $this->input('cell'));
+
+        // رشته‌ی خالی به null تبدیل می‌شود: چون شماره موبایل یکتاست، ذخیره‌ی '' باعث
+        // می‌شد فقط یک پرسنل بتواند بدون شماره ثبت شود و دومی خطای «تکراری» بگیرد.
+        // (MySQL چند NULL را در ایندکس یکتا می‌پذیرد، ولی چند '' را نه.)
+        $this->merge(['cell' => $cell === '' ? null : $cell]);
     }
 
     /** شماره‌ی موبایل را به شکل استاندارد 09xxxxxxxxx برمی‌گرداند. */

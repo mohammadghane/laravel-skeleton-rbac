@@ -34,8 +34,15 @@
         @endif
     </form>
 
+    <div x-data="bulkDelete(
+        '{{ route('admin.overtime.units.bulk-destroy') }}',
+        '{{ __('حذف :count واحد انتخاب‌شده؟ واحدهایی که پرسنل دارند حذف نمی‌شوند.') }}'
+    )">
+        @include('admin.overtime.partials.bulk-delete', ['label' => __('واحد')])
+
     <div id="units-table" class="rounded-2xl border border-line bg-white shadow-card">
         @include('admin.overtime.units.partials.table', ['units' => $units])
+    </div>
     </div>
 @endsection
 

@@ -19,6 +19,7 @@ use App\Support\Jalali;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 /**
  * کنترلر اصلی گردش کار اضافه‌کار: ثبت مدیر واحد -> تایید/رد معاونت -> تایید/رد مدیرعامل.
@@ -226,7 +227,212 @@ class OvertimePeriodController extends Controller
         $period->normal_ceiling_snapshot = optional($personnel->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
         $period->save();
 
-        return response()->json(['success' => true, 'message' => __('اضافه‌کار عادی ثبت شد.'), 'data' => $period]);
+        // ستون‌های محاسباتی از سمت سرور برمی‌گردند تا ویرایش درون‌خطیِ جدول مجبور
+        // نباشد منطق سقف بند ۴.۲ را در جاوااسکریپت بازنویسی کند (محاسبات bcmath است).
+        $period->load('specialItemLines');
+
+        return response()->json([
+            'success' => true,
+            'message' => __('اضافه‌کار عادی ثبت شد.'),
+            'data' => $period,
+            'computed' => [
+                'total' => $period->totalHours(),
+                'payable' => $period->payableHours(),
+                'capped' => $period->cappedHours(),
+                'exceeds' => $period->exceedsOverallCeiling(),
+                'status' => $period->status->value,
+                'status_label' => $period->status->label(),
+                'editable' => $period->status->editableByManager(),
+            ],
+        ]);
+    }
+
+    /**
+     * ثبت گروهی اضافه‌کار عادی برای همه‌ی پرسنل زیرمجموعه‌ی مدیر واحد.
+     *
+     * همان قواعد ثبت تکی اعمال می‌شود: پنجره‌ی زمانی (بند ۴.۶)، وضعیت قابل‌ویرایش
+     * (بند ۴.۵) و سقف گروهی (بند ۴.۴). یعنی ثبت گروهی میان‌بری برای عبور از سقف نیست.
+     *
+     * عملیات **جزئی** است: پرسنلی که شرایطشان اجازه نمی‌دهد (دوره‌ی قفل‌شده، نبودِ سقف،
+     * عبور از سقف گروهی) با ذکر دلیل گزارش می‌شوند و بقیه ثبت می‌گردند - وگرنه یک نفرِ
+     * قفل‌شده کل عملیات مدیر را بلوکه می‌کرد.
+     */
+    public function bulkStoreNormal(Request $request): JsonResponse
+    {
+        $manager = $request->user();
+
+        $validated = $request->validate([
+            'normal_hours' => ['required', 'numeric', 'min:0'],
+            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
+            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
+            // اگر خالی باشد یعنی «همه‌ی زیرمجموعه»؛ در غیر این صورت فقط انتخاب‌شده‌ها.
+            'personnel_ids' => ['nullable', 'array'],
+            'personnel_ids.*' => ['integer'],
+            // پیش‌فرض: پرسنلی که از قبل عدد دارند دست‌نخورده می‌مانند تا ثبت گروهی،
+            // تنظیمات دستیِ مدیر را پاک نکند.
+            'overwrite' => ['nullable', 'boolean'],
+        ]);
+
+        $unit = \App\Models\Unit::where('manager_user_id', $manager->id)->first();
+        abort_unless($unit, 403, __('شما مدیر هیچ واحدی نیستید.'));
+
+        $year = (int) $validated['jalali_year'];
+        $month = (int) $validated['jalali_month'];
+        $hours = (string) $validated['normal_hours'];
+        $overwrite = (bool) ($validated['overwrite'] ?? false);
+
+        $personnel = User::where('unit_id', $unit->id)
+            ->when(!empty($validated['personnel_ids']), fn ($q) => $q->whereIn('id', $validated['personnel_ids']))
+            ->with(['position', 'contractType'])
+            ->get();
+
+        $applied = 0;
+        $skipped = [];
+        // نتیجه‌ی هر رکوردِ موفق، تا جدول بتواند همان سطرها را بدون رفرش به‌روز کند.
+        $rows = [];
+
+        foreach ($personnel as $person) {
+            $label = trim($person->name . ' ' . $person->family);
+
+            try {
+                $ceiling = $person->contractType?->ceilingFor($year, $month);
+
+                if (!$ceiling || !$ceiling->isRegistrationWindowOpen()) {
+                    $skipped[] = $label . ' — ' . __('پنجره‌ی ثبت باز نیست');
+                    continue;
+                }
+
+                $period = $this->periodService->findOrCreateDraft($person, $year, $month);
+
+                if (!$period->status->editableByManager()) {
+                    $skipped[] = $label . ' — ' . $period->status->label();
+                    continue;
+                }
+
+                // بدون overwrite، عددی که مدیر قبلاً دستی گذاشته بازنویسی نمی‌شود.
+                if (!$overwrite && bccomp((string) $period->normal_hours, '0', 2) === 1) {
+                    $skipped[] = $label . ' — ' . __('از قبل مقدار دارد');
+                    continue;
+                }
+
+                $this->ceilingService->assertNormalWithinCeiling(
+                    $person, $year, $month, $hours, excludePeriodId: $period->id
+                );
+
+                $period->normal_hours = $hours;
+                $period->normal_ceiling_snapshot = optional($person->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
+                $period->save();
+                $period->load('specialItemLines');
+
+                $rows[$person->id] = [
+                    'normal_hours' => (string) $period->normal_hours,
+                    'total' => $period->totalHours(),
+                    'payable' => $period->payableHours(),
+                    'capped' => $period->cappedHours(),
+                    'exceeds' => $period->exceedsOverallCeiling(),
+                    'status' => $period->status->value,
+                    'status_label' => $period->status->label(),
+                    'editable' => $period->status->editableByManager(),
+                ];
+
+                $applied++;
+            } catch (OvertimeCeilingExceededException $e) {
+                $skipped[] = $label . ' — ' . __('عبور از سقف گروهی');
+            } catch (Throwable $e) {
+                $skipped[] = $label . ' — ' . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $applied > 0
+                ? __('اضافه‌کار :hours ساعت برای :count نفر ثبت شد.', ['hours' => $hours, 'count' => $applied])
+                : __('هیچ رکوردی ثبت نشد.'),
+            'applied' => $applied,
+            'skipped' => $skipped,
+            'rows' => $rows,
+        ]);
+    }
+
+    /**
+     * ارسال گروهی دوره‌های آماده به معاونت، از همان صفحه‌ی فهرست.
+     *
+     * چرایی وجودِ این متد در کنار submit() تکی: مدیر واحدی با ده‌ها زیرمجموعه نباید
+     * مجبور باشد ردیف‌به‌ردیف ارسال کند. مثل ثبت گروهی، عملیات **جزئی** است و
+     * دوره‌هایی که قابل ارسال نیستند با ذکر دلیل گزارش می‌شوند.
+     *
+     * نکته: پرسنلی که هنوز دوره‌ای ندارند (عددی برایشان ثبت نشده) عمداً نادیده گرفته
+     * می‌شوند، نه اینکه دوره‌ی صفر برایشان ساخته و ارسال شود - ارسالِ صفر به معاونت
+     * یعنی «این فرد اضافه‌کار ندارد» که تصمیمِ مدیر است، نه پیش‌فرضِ سیستم.
+     */
+    public function bulkSubmit(Request $request): JsonResponse
+    {
+        $manager = $request->user();
+
+        $validated = $request->validate([
+            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
+            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
+            'personnel_ids' => ['nullable', 'array'],
+            'personnel_ids.*' => ['integer'],
+        ]);
+
+        $unit = \App\Models\Unit::where('manager_user_id', $manager->id)->first();
+        abort_unless($unit, 403, __('شما مدیر هیچ واحدی نیستید.'));
+
+        $year = (int) $validated['jalali_year'];
+        $month = (int) $validated['jalali_month'];
+
+        $personnelIds = User::where('unit_id', $unit->id)
+            ->when(!empty($validated['personnel_ids']), fn ($q) => $q->whereIn('id', $validated['personnel_ids']))
+            ->pluck('id');
+
+        $periods = OvertimePeriod::with('personnel')
+            ->whereIn('personnel_id', $personnelIds)
+            ->where('jalali_year', $year)->where('jalali_month', $month)
+            ->get();
+
+        $submitted = 0;
+        $skipped = [];
+        $rows = [];
+
+        foreach ($periods as $period) {
+            $label = trim($period->personnel->name . ' ' . $period->personnel->family);
+
+            if (!$period->status->editableByManager()) {
+                $skipped[] = $label . ' — ' . $period->status->label();
+                continue;
+            }
+
+            try {
+                $period->submitted_by = $manager->id;
+                $period->manager_locked_at = now();
+                $period->save();
+
+                $period->transitionTo(OvertimePeriodStatus::ManagerSubmitted, $manager->id, __('ارسال گروهی برای بررسی معاونت'));
+
+                // پس از ارسال، سطر باید قفل شود؛ همین وضعیت را به کلاینت می‌دهیم تا
+                // فیلد ویرایشِ بازِ غیرقابل‌ذخیره روی صفحه باقی نماند.
+                $rows[$period->personnel_id] = [
+                    'status' => $period->status->value,
+                    'status_label' => $period->status->label(),
+                    'editable' => $period->status->editableByManager(),
+                ];
+
+                $submitted++;
+            } catch (Throwable $e) {
+                $skipped[] = $label . ' — ' . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $submitted > 0
+                ? __(':count دوره برای بررسی معاونت ارسال شد.', ['count' => $submitted])
+                : __('دوره‌ی قابل ارسالی یافت نشد.'),
+            'submitted' => $submitted,
+            'skipped' => $skipped,
+            'rows' => $rows,
+        ]);
     }
 
     /** مدیر واحد، دوره‌ی آماده را برای بررسی به معاونت ارسال می‌کند (قفل ویرایش برای خودش). */

@@ -15,6 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckPermission::class,
+            // دسترسی منو یا نقش چارت سازمانی - نگاه کنید به توضیح خودِ کلاس.
+            'menu-or-chart' => \App\Http\Middleware\CheckMenuOrChartRole::class,
         ]);
         // NormalizePersianInput پیش از SetLocale می‌آید تا هر ورودی (فرم، جست‌وجو، فیلتر)
         // با حروف/ارقام یکسان به کنترلر و اعتبارسنجی برسد.

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Overtime;
 
+use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\PositionRequest;
 use App\Models\Position;
@@ -12,6 +13,8 @@ use Illuminate\View\View;
 
 class PositionController extends Controller
 {
+
+    use BulkDeletes;
 
     public function index(Request $request): View
     {
@@ -77,5 +80,16 @@ class PositionController extends Controller
         $position->delete();
 
         return response()->json(['success' => true, 'message' => __('سمت سازمانی حذف شد.')]);
+    }
+
+    /** حذف گروهی - همان قواعد حفاظتیِ destroy() برای هر رکورد بررسی می‌شود. */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return $this->bulkDelete(
+            $request,
+            Position::class,
+            fn (Position $p) => $p->personnel()->exists() ? __('پرسنلی با این سمت وجود دارد') : null,
+            __('سمت سازمانی'),
+        );
     }
 }

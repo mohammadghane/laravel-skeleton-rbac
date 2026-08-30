@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Overtime;
 
+use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\UnitRequest;
 use App\Models\Deputy;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 
 class UnitController extends Controller
 {
+
+    use BulkDeletes;
 
     public function index(Request $request): View
     {
@@ -91,5 +94,16 @@ class UnitController extends Controller
             ->exists();
 
         abort_if($exists, 422, __('این کاربر هم‌اکنون مدیر یک واحد دیگر است.'));
+    }
+
+    /** حذف گروهی - همان قواعد حفاظتیِ destroy() برای هر رکورد بررسی می‌شود. */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return $this->bulkDelete(
+            $request,
+            Unit::class,
+            fn (Unit $u) => $u->personnel()->exists() ? __('دارای پرسنل زیرمجموعه') : null,
+            __('واحد'),
+        );
     }
 }

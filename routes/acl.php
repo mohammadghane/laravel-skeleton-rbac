@@ -22,17 +22,18 @@ Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(funct
     $landing = function (\Illuminate\Http\Request $request) {
         $user = $request->user();
 
-        $canSeeOvertimeDashboard = $user->hasPermission('overtime/hr-manage')
-            || $user->hasPermission('overtime/ceo-approve')
-            || $user->hasPermission('overtime/reports')
-            || $user->isUnitManager()
-            || $user->isDeputyHead();
-
-        if ($canSeeOvertimeDashboard) {
+        // مبنا همان دسترسیِ منوهاست (config/permissions.php) تا صفحه‌ی فرود دقیقاً با
+        // چیزی که کاربر در سایدبار می‌بیند هم‌خوان باشد. مدیر واحد و معاون هم بدون
+        // دسترسی صریح به داشبورد می‌روند، چون بخشی از وظیفه‌ی اجرایی‌شان است.
+        if ($user->hasPermission('menu/dashboard') || $user->isUnitManager() || $user->isDeputyHead()) {
             return redirect()->route('admin.overtime.dashboard');
         }
 
-        return $user->hasPermission('admin/users')
+        if ($user->hasPermission('menu/overtime-entry')) {
+            return redirect()->route('admin.overtime.periods.index');
+        }
+
+        return $user->hasPermission('menu/personnel')
             ? redirect()->route('admin.users.index')
             : redirect()->route('admin.profile');
     };
@@ -40,7 +41,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(funct
     Route::get('/', $landing)->name('dashboard');
     Route::get('/dashboard', $landing)->name('dashboard.alias');
 
-    Route::prefix('roles')->name('roles.')->middleware('permission:admin/roles')->group(function () {
+    Route::prefix('roles')->name('roles.')->middleware('permission:menu/roles')->group(function () {
         Route::get('/', [RoleController::class, 'index'])->name('index');
         Route::get('/create', [RoleController::class, 'edit'])->name('create');
         Route::get('/{role}/edit', [RoleController::class, 'edit'])->name('edit');
@@ -50,11 +51,12 @@ Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(funct
         Route::post('/{role}/permissions', [RoleController::class, 'savePermissions'])->name('permissions.store');
     });
 
-    Route::prefix('users')->name('users.')->middleware('permission:admin/users')->group(function () {
+    Route::prefix('users')->name('users.')->middleware('permission:menu/personnel')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::get('/create', [UserController::class, 'edit'])->name('create');
         Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
         Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::post('/bulk-destroy', [UserController::class, 'bulkDestroy'])->name('bulk-destroy');
         Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
     });
 
@@ -65,5 +67,5 @@ Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(funct
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
         ->name('audit-logs.index')
-        ->middleware('permission:admin/audit-logs');
+        ->middleware('permission:menu/audit-logs');
 });

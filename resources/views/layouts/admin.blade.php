@@ -73,6 +73,130 @@
         }
     </script>
 
+    {{-- حذف گروهی: مشترک بین همه‌ی فهرست‌ها.
+         انتخاب ردیف‌ها با `.row-select` و چک‌باکس سربرگ با `.select-all` انجام می‌شود.
+         سرور همان قواعد حفاظتیِ حذف تکی را اعمال می‌کند و موارد رد شده را برمی‌گرداند. --}}
+    <script>
+        function bulkDelete(url, confirmMessage) {
+            return {
+                url: url,
+                selected: [],
+                blocked: [],
+                busy: false,
+
+                toggle(id, checked) {
+                    this.selected = checked
+                        ? [...this.selected, id]
+                        : this.selected.filter(x => x !== id);
+                },
+
+                toggleAll(checked) {
+                    const boxes = document.querySelectorAll('.row-select');
+                    boxes.forEach(b => { b.checked = checked; });
+                    this.selected = checked ? [...boxes].map(b => Number(b.value)) : [];
+                },
+
+                clearSelection() {
+                    document.querySelectorAll('.row-select, .select-all').forEach(b => { b.checked = false; });
+                    this.selected = [];
+                    this.blocked = [];
+                },
+
+                async destroySelected() {
+                    const message = (confirmMessage || 'آیا از حذف موارد انتخاب‌شده اطمینان دارید؟')
+                        .replace(':count', this.selected.length);
+
+                    if (!confirm(message)) return;
+
+                    this.busy = true;
+                    this.blocked = [];
+
+                    try {
+                        const body = new FormData();
+                        this.selected.forEach(id => body.append('ids[]', id));
+
+                        const res = await fetch(this.url, {
+                            method: 'POST',
+                            body: body,
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            },
+                        });
+
+                        const result = await res.json();
+
+                        if (!res.ok || !result.success) {
+                            window.dispatchEvent(new CustomEvent('toast', {
+                                detail: { message: result.message || 'حذف با خطا مواجه شد.', type: 'error' },
+                            }));
+                            return;
+                        }
+
+                        window.dispatchEvent(new CustomEvent('toast', {
+                            detail: { message: result.message, type: result.deleted > 0 ? 'success' : 'error' },
+                        }));
+
+                        // سطرهای حذف‌شده بلافاصله از جدول برداشته می‌شوند - چه عملیات
+                        // کامل موفق باشد چه جزئی. پیش‌تر در حالت جزئی فقط گزارشِ موارد
+                        // رد شده نمایش داده می‌شد و سطرهای حذف‌شده تا رفرش دستیِ کاربر
+                        // روی صفحه می‌ماندند، که یعنی کاربر داده‌ی نادرست می‌دید.
+                        this.removeRows(result.deleted_ids || []);
+
+                        if (!result.blocked || result.blocked.length === 0) {
+                            // بدون موردِ رد شده، تازه‌سازی امن است: چیزی برای خواندن نمانده
+                            // و شمارنده/صفحه‌بندی سرور هم به‌روز می‌شود.
+                            setTimeout(() => window.location.reload(), 600);
+                        } else {
+                            this.blocked = result.blocked;
+                            this.clearSelectionKeepBlocked();
+                        }
+                    } catch {
+                        window.dispatchEvent(new CustomEvent('toast', {
+                            detail: { message: 'اتصال به سرور برقرار نشد.', type: 'error' },
+                        }));
+                    } finally {
+                        this.busy = false;
+                    }
+                },
+
+                clearSelectionKeepBlocked() {
+                    document.querySelectorAll('.row-select, .select-all').forEach(b => { b.checked = false; });
+                    this.selected = [];
+                },
+
+                /**
+                 * سطرهای رکوردهای حذف‌شده را از DOM برمی‌دارد.
+                 *
+                 * مبنا همان چک‌باکس `.row-select` است که مقدارش شناسه‌ی رکورد است، پس
+                 * به ساختار جدولِ هر صفحه وابسته نیست. اگر ردیفی پیدا نشود (مثلاً جدول
+                 * ساختار متفاوتی دارد) بی‌سروصدا رد می‌شود.
+                 */
+                removeRows(ids) {
+                    ids.forEach(id => {
+                        const box = document.querySelector(`.row-select[value="${id}"]`);
+                        const row = box?.closest('tr');
+
+                        if (row) row.remove();
+                    });
+
+                    this.showEmptyStateIfNeeded();
+                },
+
+                /** اگر آخرین سطر هم حذف شد، جدولِ خالی نباید بی‌پیام رها شود. */
+                showEmptyStateIfNeeded() {
+                    const body = document.querySelector('tbody');
+
+                    if (!body || body.querySelector('tr')) return;
+
+                    const columns = document.querySelectorAll('thead th').length || 1;
+                    body.innerHTML = `<tr><td colspan="${columns}" class="px-5 py-10 text-center text-ink/40">موردی برای نمایش نیست.</td></tr>`;
+                },
+            };
+        }
+    </script>
+
     {{-- Alpine.js — declarative state for the sidebar drawer, profile menu, and toasts (no build step). --}}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
@@ -113,173 +237,127 @@
                 <span class="text-base font-bold text-white">{{ __('پنل مدیریت') }}</span>
             </div>
 
+            {{--
+                منوی سایدبار از یک آرایه‌ی مرتب ساخته می‌شود، نه ۱۴ بلوک تکراری. برای
+                جابه‌جایی یا افزودن آیتم کافی است همین آرایه تغییر کند.
+
+                هر آیتم:
+                  label   عنوان نمایشی
+                  route   نام route مقصد
+                  active  الگوی routeIs برای حالت «فعال» (پیش‌فرض: خودِ route با .*)
+                  show    شرط نمایش (پیش‌فرض: true)
+            --}}
+            @php
+                $user = auth()->user();
+
+                // هر منو دسترسی مستقل خودش را دارد (config/permissions.php، بخش menus).
+                // نقش‌های چارت سازمانی (مدیر واحد / معاون) هم به‌صورت خودکار به دو منوی
+                // «داشبورد» و «ثبت اضافه‌کار» دسترسی دارند، چون بدون آن‌ها اصلاً نمی‌توانند
+                // کارشان را انجام دهند و تخصیص دستیِ دسترسی برای هر مدیر جدید فراموش می‌شد.
+                $inChart = $user && ($user->isUnitManager() || $user->isDeputyHead());
+
+                $can = fn (string $permission) => $user && $user->hasPermission($permission);
+
+                $navItems = [
+                    [
+                        'label' => __('داشبورد و گزارش‌ها'),
+                        'route' => 'admin.overtime.dashboard',
+                        'active' => 'admin.overtime.dashboard|admin.overtime.reports.*',
+                        'show' => $can('menu/dashboard') || $inChart,
+                    ],
+                    [
+                        'label' => __('پرسنل'),
+                        'route' => 'admin.users.index',
+                        'active' => 'admin.users.*',
+                        'show' => $can('menu/personnel'),
+                    ],
+                    [
+                        'label' => __('معاونت'),
+                        'route' => 'admin.overtime.deputies.index',
+                        'active' => 'admin.overtime.deputies.*',
+                        'show' => $can('menu/deputies'),
+                    ],
+                    [
+                        'label' => __('سمت سازمانی'),
+                        'route' => 'admin.overtime.positions.index',
+                        'active' => 'admin.overtime.positions.*',
+                        'show' => $can('menu/positions'),
+                    ],
+                    [
+                        'label' => __('واحد سازمانی'),
+                        'route' => 'admin.overtime.units.index',
+                        'active' => 'admin.overtime.units.*',
+                        'show' => $can('menu/units'),
+                    ],
+                    [
+                        'label' => __('قراردادها و سقف‌ها'),
+                        'route' => 'admin.overtime.contract-types.index',
+                        'active' => 'admin.overtime.contract-types.*',
+                        'show' => $can('menu/contract-types'),
+                    ],
+                    [
+                        'label' => __('همگام‌سازی پرسنل'),
+                        'route' => 'admin.overtime.sync.index',
+                        'active' => 'admin.overtime.sync.*',
+                        'show' => $can('menu/personnel-sync'),
+                    ],
+                    [
+                        'label' => __('کسر کار / ماموریت'),
+                        'route' => 'admin.overtime.import.form',
+                        'active' => 'admin.overtime.import.*',
+                        'show' => $can('menu/import'),
+                    ],
+                    [
+                        'label' => __('آیتم‌های ویژه'),
+                        'route' => 'admin.overtime.special-items.index',
+                        'active' => 'admin.overtime.special-items.*',
+                        'show' => $can('menu/special-items'),
+                    ],
+                    [
+                        'label' => __('واگذاری ظرفیت مازاد'),
+                        'route' => 'admin.overtime.capacity-transfers.index',
+                        'active' => 'admin.overtime.capacity-transfers.*',
+                        'show' => $can('menu/capacity-transfers') || ($user && $user->isDeputyHead()),
+                    ],
+                    [
+                        'label' => __('ثبت اضافه‌کار'),
+                        'route' => 'admin.overtime.periods.index',
+                        'active' => 'admin.overtime.periods.*',
+                        'show' => $can('menu/overtime-entry') || $inChart,
+                    ],
+                    [
+                        'label' => __('نقش سازمانی'),
+                        'route' => 'admin.roles.index',
+                        'active' => 'admin.roles.*',
+                        'show' => $can('menu/roles'),
+                    ],
+                    [
+                        'label' => __('گزارش تغییرات'),
+                        'route' => 'admin.audit-logs.index',
+                        'active' => 'admin.audit-logs.*',
+                        'show' => $can('menu/audit-logs'),
+                    ],
+                ];
+            @endphp
+
             <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-                <p class="px-3 pb-2 text-xs font-medium text-white/40">{{ __('دسترسی سریع') }}</p>
+                @foreach ($navItems as $item)
+                    @continue(!($item['show'] ?? true))
 
-                <a
-                    href="{{ route('admin.profile') }}"
-                    class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                        {{ request()->routeIs('admin.profile') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                >
-                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                    {{ __('پروفایل من') }}
-                </a>
-
-                @permission('admin/users')
-                    <a
-                        href="{{ route('admin.users.index') }}"
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                            {{ request()->routeIs('admin.users.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                    >
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        {{ __('پرسنل') }}
-                    </a>
-                @endpermission
-
-                @permission('admin/roles')
-                    <a
-                        href="{{ route('admin.roles.index') }}"
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                            {{ request()->routeIs('admin.roles.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                    >
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        {{ __('نقش‌های سازمانی') }}
-                    </a>
-                @endpermission
-
-                @permission('admin/audit-logs')
-                    <a
-                        href="{{ route('admin.audit-logs.index') }}"
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                            {{ request()->routeIs('admin.audit-logs.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                    >
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        {{ __('گزارش تغییرات') }}
-                    </a>
-                @endpermission
-
-                <a
-                    href="{{ route('admin.settings.edit') }}"
-                    class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                        {{ request()->routeIs('admin.settings.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                >
-                    <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                    {{ __('تنظیمات') }}
-                </a>
-
-                {{-- ماژول اضافه‌کار پرسنل. هر آیتم بر اساس نقش واقعی کاربر در چارت سازمانی یا
-                     permission او نمایش داده می‌شود، نه برای همه. --}}
-                @php
-                    $canSeeOvertime = auth()->check() && (
-                        auth()->user()->hasPermission('overtime/hr-manage')
-                        || auth()->user()->hasPermission('overtime/ceo-approve')
-                        || auth()->user()->hasPermission('overtime/org-chart-manage')
-                        || auth()->user()->hasPermission('overtime/reports')
-                        || auth()->user()->isUnitManager()
-                        || auth()->user()->isDeputyHead()
-                    );
-                @endphp
-
-                @if ($canSeeOvertime)
-                    <p class="px-3 pb-2 pt-4 text-xs font-medium text-white/40">{{ __('اضافه‌کار پرسنل') }}</p>
+                    @php
+                        $patterns = explode('|', $item['active'] ?? ($item['route'] . '.*'));
+                        $isActive = request()->routeIs(...$patterns);
+                    @endphp
 
                     <a
-                        href="{{ route('admin.overtime.periods.index') }}"
+                        href="{{ route($item['route']) }}"
                         class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                            {{ request()->routeIs('admin.overtime.periods.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
+                            {{ $isActive ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
                     >
                         <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        {{ __('ثبت و تایید اضافه‌کار') }}
+                        {{ $item['label'] }}
                     </a>
-
-                    <a
-                        href="{{ route('admin.overtime.dashboard') }}"
-                        class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                            {{ request()->routeIs('admin.overtime.dashboard') || request()->routeIs('admin.overtime.reports.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                    >
-                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                        {{ __('داشبورد و گزارش‌ها') }}
-                    </a>
-
-                    {{-- واگذاری ظرفیت مازاد: هم HR و هم خودِ معاون به آن دسترسی دارند. --}}
-                    @if (auth()->user()->hasPermission('overtime/hr-manage') || auth()->user()->isDeputyHead())
-                        <a
-                            href="{{ route('admin.overtime.capacity-transfers.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.capacity-transfers.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('واگذاری ظرفیت مازاد') }}
-                        </a>
-                    @endif
-
-                    @permission('overtime/hr-manage')
-                        <a
-                            href="{{ route('admin.overtime.special-items.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.special-items.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('آیتم‌های ویژه') }}
-                        </a>
-
-                        <a
-                            href="{{ route('admin.overtime.import.form') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.import.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('ورود اطلاعات از اکسل') }}
-                        </a>
-
-                        <a
-                            href="{{ route('admin.overtime.sync.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.sync.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('همگام‌سازی پرسنل') }}
-                        </a>
-                    @endpermission
-
-                    @permission('overtime/org-chart-manage')
-                        <a
-                            href="{{ route('admin.overtime.contract-types.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.contract-types.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('انواع قرارداد و سقف‌ها') }}
-                        </a>
-
-                        <a
-                            href="{{ route('admin.overtime.positions.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.positions.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('سمت‌های سازمانی') }}
-                        </a>
-
-                        <a
-                            href="{{ route('admin.overtime.deputies.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.deputies.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('معاونت‌ها') }}
-                        </a>
-
-                        <a
-                            href="{{ route('admin.overtime.units.index') }}"
-                            class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition
-                                {{ request()->routeIs('admin.overtime.units.*') ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white' }}"
-                        >
-                            <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
-                            {{ __('واحدهای سازمانی') }}
-                        </a>
-                    @endpermission
-                @endif
+                @endforeach
 
                 @yield('sidebar-extra')
             </nav>

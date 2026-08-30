@@ -134,7 +134,8 @@ class PersianTextNormalizationTest extends TestCase
 
         $role = \App\Models\Role::firstOrCreate(['name' => 'admin']);
 
-        foreach (['admin/users', 'overtime/org-chart-manage'] as $key) {
+        // مسیرها اکنون با دسترسی منو محافظت می‌شوند، پس علاوه بر دسترسی عملیاتی لازم‌اند.
+        foreach (['admin/users', 'overtime/org-chart-manage', 'menu/personnel', 'menu/positions'] as $key) {
             $permission = \App\Models\Permission::firstOrCreate(['key' => $key], ['title' => $key]);
             $role->permissions()->syncWithoutDetaching([$permission->id]);
         }

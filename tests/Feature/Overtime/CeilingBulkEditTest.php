@@ -25,9 +25,13 @@ class CeilingBulkEditTest extends TestCase
 
     private function hrUser(): User
     {
-        $permission = Permission::firstOrCreate(['key' => 'overtime/hr-manage'], ['title' => 'HR']);
+        // علاوه بر دسترسی عملیاتی HR، دسترسیِ منوهای مربوطه هم لازم است چون مسیرها
+        // اکنون با permission:menu/* محافظت می‌شوند.
+        $keys = ['overtime/hr-manage', 'menu/contract-types', 'menu/positions'];
+        $ids = collect($keys)->map(fn ($key) => Permission::firstOrCreate(['key' => $key], ['title' => $key])->id);
+
         $role = Role::firstOrCreate(['name' => 'hr']);
-        $role->permissions()->syncWithoutDetaching([$permission->id]);
+        $role->permissions()->syncWithoutDetaching($ids->all());
 
         $user = User::factory()->create();
         $user->roles()->attach($role->id);

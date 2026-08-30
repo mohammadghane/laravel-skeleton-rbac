@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Overtime;
 
+use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\DeputyRequest;
 use App\Models\Deputy;
@@ -18,6 +19,8 @@ use Illuminate\View\View;
  */
 class DeputyController extends Controller
 {
+
+    use BulkDeletes;
 
     public function index(Request $request): View
     {
@@ -78,5 +81,17 @@ class DeputyController extends Controller
         $deputy->delete();
 
         return response()->json(['success' => true, 'message' => __('معاونت حذف شد.')]);
+    }
+
+    /** حذف گروهی - همان قواعد حفاظتیِ destroy() برای هر رکورد بررسی می‌شود. */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return $this->bulkDelete(
+            $request,
+            Deputy::class,
+            fn (Deputy $d) => ($d->units()->exists() || $d->directPersonnel()->exists())
+                ? __('دارای واحد یا پرسنل زیرمجموعه') : null,
+            __('معاونت'),
+        );
     }
 }

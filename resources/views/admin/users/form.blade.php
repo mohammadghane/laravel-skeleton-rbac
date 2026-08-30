@@ -37,13 +37,12 @@
             <input
                 class="{{ $input }} font-mono"
                 name="cell"
-                required
                 inputmode="numeric"
                 maxlength="11"
-                placeholder="09121111111"
+                placeholder="{{ __('اختیاری — 09121111111') }}"
                 value="{{ old('cell', $user->cell ?? '') }}"
             >
-            <span class="mt-1 block text-xs text-ink/40">{{ __('۱۱ رقم، با ۰۹ شروع شود.') }}</span>
+            <span class="mt-1 block text-xs text-ink/40">{{ __('اختیاری؛ در صورت ورود باید ۱۱ رقم و با ۰۹ شروع شود.') }}</span>
         </div>
         <div>
             <label class="{{ $label }}">{{ __('کد ملی') }}</label>

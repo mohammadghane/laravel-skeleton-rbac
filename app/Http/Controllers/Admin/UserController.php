@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UserRequest;
 use App\Models\AuditLog;
@@ -14,6 +15,8 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
+    use BulkDeletes;
+
     public function index(Request $request): View
     {
         $currentUser = $request->user();
@@ -22,6 +25,12 @@ class UserController extends Controller
             // position برای ستون «سمت سازمانی» در جدول - بدون eager load، به‌ازای هر
             // ردیف یک کوئری اضافه می‌خورد (N+1).
             ->with('position')
+            // حساب سرویسیِ `admin` پرسنل سازمان نیست و نباید در این فهرست دیده شود
+            // (و در نتیجه در حذف گروهی هم انتخاب نمی‌شود).
+            //
+            // نکته: `username != 'admin'` به‌تنهایی کافی نیست، چون در SQL مقایسه با NULL
+            // نتیجه‌ی NULL می‌دهد و رکوردهای بدون نام کاربری هم از فهرست حذف می‌شدند.
+            ->where(fn ($q) => $q->whereNull('username')->orWhere('username', '!=', 'admin'))
             ->when($currentUser->is_agency, fn ($q) => $q->where('agency_id', $currentUser->id))
             ->when(!$currentUser->isAdmin(), fn ($q) => $q->where('center_id', $currentUser->center_id))
             ->when($request->filled('filters.gender'), fn ($q) => $q->where('gender', $request->input('filters.gender')))
@@ -38,18 +47,42 @@ class UserController extends Controller
                         ->orWhere('personnel_code', 'like', $term)
                         ->orWhere('cell', 'like', $term)
                         ->orWhere('national_code', 'like', $term)
-                        ->orWhereRaw("CONCAT(name, ' ', COALESCE(family, '')) LIKE ?", [$term]);
+                        ->orWhereRaw("CONCAT(name, ' ', COALESCE(family, '')) LIKE ?", [$term])
+                        // سمت سازمانی هم ستونی از همین جدول است، پس کاربر انتظار دارد
+                        // جست‌وجوی «کارشناس» پرسنل آن سمت را برگرداند.
+                        ->orWhereHas('position', fn ($p) => $p->where('title', 'like', $term));
                 });
             })
             ->orderByDesc('id')
-            ->paginate(config('app.page_size', 20))
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
+        $perPageOptions = self::PER_PAGE_OPTIONS;
+        $perPage = $this->perPage($request);
+
         if ($request->ajax() && $request->boolean('rows_only')) {
-            return view('admin.users.partials.table', compact('users'));
+            return view('admin.users.partials.table', compact('users', 'perPageOptions', 'perPage'));
         }
 
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', compact('users', 'perPageOptions', 'perPage'));
+    }
+
+    /** گزینه‌های مجاز «تعداد در هر صفحه». */
+    public const PER_PAGE_OPTIONS = [20, 50, 100, 200];
+
+    /**
+     * تعداد رکورد در هر صفحه بر اساس انتخاب کاربر.
+     *
+     * مقدار فقط از فهرست مجاز پذیرفته می‌شود؛ در غیر این صورت یک درخواست دستکاری‌شده مثل
+     * ?per_page=1000000 می‌توانست کل جدول را در حافظه بارگذاری کند.
+     */
+    private function perPage(Request $request): int
+    {
+        $requested = (int) $request->input('per_page');
+
+        return in_array($requested, self::PER_PAGE_OPTIONS, true)
+            ? $requested
+            : (int) config('app.page_size', 20);
     }
 
     public function profile(Request $request): View
@@ -104,6 +137,10 @@ class UserController extends Controller
         if ($user && $currentUser->is_agency && $user->agency_id !== $currentUser->id) {
             abort(404);
         }
+
+        // حساب سرویسیِ admin از فهرست پرسنل پنهان است؛ ویرایش مستقیم آن هم نباید ممکن
+        // باشد، وگرنه پنهان‌سازی صرفاً ظاهری می‌شد.
+        abort_if($user && $user->username === 'admin' && $currentUser->username !== 'admin', 404);
 
         $data = [
             'user' => $user?->load('roles'),
@@ -196,8 +233,51 @@ class UserController extends Controller
             abort(404);
         }
 
+        abort_if($user->username === 'admin', 404);
+
         $user->delete(); // soft delete
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * حذف گروهی پرسنل (soft delete).
+     *
+     * دو محافظ: کاربر نمی‌تواند خودش را حذف کند (وگرنه بلافاصله دسترسی‌اش را از دست
+     * می‌دهد)، و پرسنلی که مدیر واحد یا معاون است حذف نمی‌شود - چون گردش تایید اضافه‌کار
+     * آن واحد/معاونت بی‌مسئول می‌ماند.
+     */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $currentUser = $request->user();
+
+        return $this->bulkDelete(
+            $request,
+            User::class,
+            function (User $user) use ($currentUser) {
+                if ($user->id === $currentUser->id) {
+                    return __('حساب خودتان');
+                }
+
+                if ($user->username === 'admin') {
+                    return __('حساب سرویسی سیستم');
+                }
+
+                if ($currentUser->is_agency && $user->agency_id !== $currentUser->id) {
+                    return __('خارج از محدوده‌ی دسترسی شما');
+                }
+
+                if (\App\Models\Unit::where('manager_user_id', $user->id)->exists()) {
+                    return __('مدیر یک واحد است');
+                }
+
+                if (\App\Models\Deputy::where('head_user_id', $user->id)->exists()) {
+                    return __('معاون یک معاونت است');
+                }
+
+                return null;
+            },
+            __('پرسنل'),
+        );
     }
 }
