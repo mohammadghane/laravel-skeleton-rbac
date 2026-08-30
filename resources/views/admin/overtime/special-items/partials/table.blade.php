@@ -2,6 +2,9 @@
     <table class="w-full text-start text-sm">
         <thead>
             <tr class="border-b border-line text-xs text-ink/50">
+                <th class="px-5 py-3 font-medium w-10">
+                    <input type="checkbox" class="select-all rounded border-line text-pine focus:ring-pine/20" @change="toggleAll($event.target.checked)">
+                </th>
                 <th class="px-5 py-3 font-medium">{{ __('عنوان آیتم') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('مسئول ثبت') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('نحوه‌ی مقداردهی') }}</th>
@@ -14,6 +17,9 @@
         <tbody class="divide-y divide-line">
             @forelse ($items as $item)
                 <tr class="hover:bg-surface/60">
+                    <td class="px-5 py-3.5">
+                        <input type="checkbox" class="row-select rounded border-line text-pine focus:ring-pine/20" value="{{ $item->id }}" @change="toggle({{ $item->id }}, $event.target.checked)">
+                    </td>
                     <td class="px-5 py-3.5 font-medium text-ink">{{ $item->title }}</td>
 
                     <td class="px-5 py-3.5">
@@ -48,7 +54,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
+                <tr><td colspan="8" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
             @endforelse
         </tbody>
     </table>

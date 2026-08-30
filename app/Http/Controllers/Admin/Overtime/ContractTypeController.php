@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Overtime;
 
+use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\ContractTypeRequest;
 use App\Models\ContractType;
@@ -12,6 +13,8 @@ use Illuminate\View\View;
 
 class ContractTypeController extends Controller
 {
+
+    use BulkDeletes;
 
     public function index(Request $request): View
     {
@@ -78,5 +81,16 @@ class ContractTypeController extends Controller
         $contractType->delete();
 
         return response()->json(['success' => true, 'message' => __('نوع قرارداد حذف شد.')]);
+    }
+
+    /** حذف گروهی - همان قواعد حفاظتیِ destroy() برای هر رکورد بررسی می‌شود. */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return $this->bulkDelete(
+            $request,
+            ContractType::class,
+            fn (ContractType $t) => $t->personnel()->exists() ? __('پرسنلی با این نوع قرارداد وجود دارد') : null,
+            __('نوع قرارداد'),
+        );
     }
 }

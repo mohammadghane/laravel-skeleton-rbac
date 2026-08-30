@@ -16,8 +16,11 @@
 @endphp
 
 <form method="GET" action="{{ route($route) }}" class="flex flex-wrap items-center gap-2">
+    {{-- مقادیر خالی ارسال نمی‌شوند تا آدرس صفحه با پارامترهای بی‌مقدار شلوغ نشود. --}}
     @foreach (($extra ?? []) as $name => $value)
-        <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+        @if ($value !== null && $value !== '')
+            <input type="hidden" name="{{ $name }}" value="{{ $value }}">
+        @endif
     @endforeach
 
     <div class="relative">

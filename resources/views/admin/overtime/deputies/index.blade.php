@@ -15,8 +15,15 @@
         @include('admin.overtime.partials.search-box', ['route' => 'admin.overtime.deputies.index', 'placeholder' => __('عنوان معاونت…')])
     </div>
 
+    <div x-data="bulkDelete(
+        '{{ route('admin.overtime.deputies.bulk-destroy') }}',
+        '{{ __('حذف :count معاونت انتخاب‌شده؟ معاونت‌هایی که واحد یا پرسنل دارند حذف نمی‌شوند.') }}'
+    )">
+        @include('admin.overtime.partials.bulk-delete', ['label' => __('معاونت')])
+
     <div id="deputies-table" class="rounded-2xl border border-line bg-white shadow-card">
         @include('admin.overtime.deputies.partials.table', ['deputies' => $deputies])
+    </div>
     </div>
 @endsection
 

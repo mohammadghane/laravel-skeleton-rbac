@@ -2,6 +2,9 @@
     <table class="w-full text-start text-sm">
         <thead>
             <tr class="border-b border-line text-xs text-ink/50">
+                <th class="px-5 py-3 font-medium w-10">
+                    <input type="checkbox" class="select-all rounded border-line text-pine focus:ring-pine/20" @change="toggleAll($event.target.checked)">
+                </th>
                 <th class="px-5 py-3 font-medium">{{ __('عنوان واحد') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('معاونت') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('مدیر واحد (مسئول ثبت)') }}</th>
@@ -12,6 +15,9 @@
         <tbody class="divide-y divide-line">
             @forelse ($units as $unit)
                 <tr class="hover:bg-surface/60">
+                    <td class="px-5 py-3.5">
+                        <input type="checkbox" class="row-select rounded border-line text-pine focus:ring-pine/20" value="{{ $unit->id }}" @change="toggle({{ $unit->id }}, $event.target.checked)">
+                    </td>
                     <td class="px-5 py-3.5 font-medium text-ink">{{ $unit->title }}</td>
                     <td class="px-5 py-3.5 text-ink/60">{{ $unit->deputy?->title ?? '—' }}</td>
                     <td class="px-5 py-3.5 text-ink/60">
@@ -37,7 +43,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
+                <tr><td colspan="6" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
             @endforelse
         </tbody>
     </table>

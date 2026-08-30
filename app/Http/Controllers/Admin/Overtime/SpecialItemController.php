@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Overtime;
 
+use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\SpecialItemRequest;
 use App\Models\SpecialItem;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class SpecialItemController extends Controller
 {
+
+    use BulkDeletes;
 
     public function index(Request $request): View
     {
@@ -63,5 +66,16 @@ class SpecialItemController extends Controller
         $specialItem->delete();
 
         return response()->json(['success' => true, 'message' => __('آیتم ویژه حذف شد.')]);
+    }
+
+    /** حذف گروهی - همان قواعد حفاظتیِ destroy() برای هر رکورد بررسی می‌شود. */
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        return $this->bulkDelete(
+            $request,
+            SpecialItem::class,
+            fn (SpecialItem $i) => $i->eligiblePersonnel()->exists() ? __('برای پرسنلی تعریف شده است') : null,
+            __('آیتم ویژه'),
+        );
     }
 }

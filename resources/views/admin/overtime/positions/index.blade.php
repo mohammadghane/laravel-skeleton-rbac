@@ -35,7 +35,12 @@
         ])
     </div>
 
-    <div x-data="bulkPositionCeilings()">
+    <div x-data="bulkPositionCeilings(
+        '{{ route('admin.overtime.positions.bulk-destroy') }}',
+        '{{ __('حذف :count سمت انتخاب‌شده؟ سمت‌هایی که پرسنل دارند حذف نمی‌شوند.') }}'
+    )">
+        @include('admin.overtime.partials.bulk-delete', ['label' => __('سمت')])
+
         <div x-show="selected.length > 0" class="mb-4 rounded-2xl border border-pine/30 bg-pine-100 p-4">
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <span class="text-sm font-medium text-pine">
@@ -98,24 +103,10 @@
 <script>
     function reloadPositionGrid() { window.location.reload(); }
 
-    function bulkPositionCeilings() {
-        return {
-            selected: [],
-            toggle(id, checked) {
-                this.selected = checked
-                    ? [...this.selected, id]
-                    : this.selected.filter(x => x !== id);
-            },
-            toggleAll(checked) {
-                const boxes = document.querySelectorAll('.row-select');
-                boxes.forEach(b => { b.checked = checked; });
-                this.selected = checked ? [...boxes].map(b => Number(b.value)) : [];
-            },
-            clearSelection() {
-                document.querySelectorAll('.row-select, .select-all').forEach(b => { b.checked = false; });
-                this.selected = [];
-            },
-        };
+    // منطق انتخاب ردیف‌ها و حذف گروهی از bulkDelete مشترک (در layouts/admin.blade.php)
+    // می‌آید؛ همان انتخاب هم برای «اعمال گروهی سقف» استفاده می‌شود.
+    function bulkPositionCeilings(deleteUrl, confirmMessage) {
+        return bulkDelete(deleteUrl, confirmMessage);
     }
 </script>
 @endpush

@@ -15,8 +15,15 @@
         @include('admin.overtime.partials.search-box', ['route' => 'admin.overtime.special-items.index', 'placeholder' => __('عنوان آیتم…')])
     </div>
 
+    <div x-data="bulkDelete(
+        '{{ route('admin.overtime.special-items.bulk-destroy') }}',
+        '{{ __('حذف :count آیتم انتخاب‌شده؟ آیتم‌هایی که برای پرسنلی تعریف شده‌اند حذف نمی‌شوند.') }}'
+    )">
+        @include('admin.overtime.partials.bulk-delete', ['label' => __('آیتم ویژه')])
+
     <div id="special-items-table" class="rounded-2xl border border-line bg-white shadow-card">
         @include('admin.overtime.special-items.partials.table', ['items' => $items])
+    </div>
     </div>
 @endsection
 

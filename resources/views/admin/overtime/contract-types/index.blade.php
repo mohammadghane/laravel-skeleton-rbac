@@ -37,7 +37,12 @@
     </div>
 
     {{-- x-data روی کل بخش: انتخاب ردیف‌ها و پنل ویرایش گروهی با هم کار می‌کنند. --}}
-    <div x-data="bulkCeilings()">
+    <div x-data="bulkCeilings(
+        '{{ route('admin.overtime.contract-types.bulk-destroy') }}',
+        '{{ __('حذف :count نوع قرارداد انتخاب‌شده؟ مواردی که پرسنل دارند حذف نمی‌شوند.') }}'
+    )">
+        @include('admin.overtime.partials.bulk-delete', ['label' => __('نوع قرارداد')])
+
         {{-- نوار اقدام گروهی: فقط وقتی چیزی انتخاب شده باشد دیده می‌شود. --}}
         <div x-show="selected.length > 0" class="mb-4 rounded-2xl border border-pine/30 bg-pine-100 p-4">
             <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -105,25 +110,10 @@
 <script>
     function reloadContractTypeGrid() { window.location.reload(); }
 
-    function bulkCeilings() {
-        return {
-            selected: [],
-            clearOverall: false,
-            toggle(id, checked) {
-                this.selected = checked
-                    ? [...this.selected, id]
-                    : this.selected.filter(x => x !== id);
-            },
-            toggleAll(checked) {
-                const boxes = document.querySelectorAll('.row-select');
-                boxes.forEach(b => { b.checked = checked; });
-                this.selected = checked ? [...boxes].map(b => Number(b.value)) : [];
-            },
-            clearSelection() {
-                document.querySelectorAll('.row-select, .select-all').forEach(b => { b.checked = false; });
-                this.selected = [];
-            },
-        };
+    // منطق انتخاب و حذف گروهی از bulkDelete مشترک (layouts/admin.blade.php) می‌آید؛
+    // همان انتخاب برای «اعمال گروهی سقف» هم استفاده می‌شود. clearOverall مخصوص این صفحه است.
+    function bulkCeilings(deleteUrl, confirmMessage) {
+        return { ...bulkDelete(deleteUrl, confirmMessage), clearOverall: false };
     }
 </script>
 @endpush
