@@ -9,28 +9,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', __('ورود'))</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Vazirmatn', 'Inter', 'sans-serif'] },
-                    colors: {
-                        ink: { DEFAULT: '#1C2333', soft: '#2A3244' },
-                        surface: '#F5F6F3',
-                        pine: { DEFAULT: '#3E6259', 600: '#345049', 100: '#E4ECE9' },
-                        gold: { DEFAULT: '#C9A227' },
-                        brick: { DEFAULT: '#B4432F', 100: '#F7E4E0' },
-                        line: '#E3E5E0',
-                    },
-                    boxShadow: { card: '0 1px 2px 0 rgb(28 35 51 / 0.04), 0 1px 3px 0 rgb(28 35 51 / 0.06)' },
-                },
-            },
-        };
-    </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    {{-- همان بستهٔ محلی صفحات پنل؛ هیچ فایلی از اینترنت گرفته نمی‌شود. --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="flex h-full items-center justify-center bg-surface font-sans text-ink antialiased">
     <div class="absolute top-4 end-4">

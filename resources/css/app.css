@@ -1,3 +1,9 @@
+/* فونت‌های محلی - باید پیش از Tailwind بیاید تا @font-faceها زودتر تعریف شوند. */
+@import './fonts.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* x-cloak: پیش از راه‌اندازی Alpine، عناصر مشروط نباید یک لحظه دیده شوند. */
+[x-cloak] { display: none !important; }

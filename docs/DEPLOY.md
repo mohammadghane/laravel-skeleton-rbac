@@ -48,6 +48,41 @@ sudo DOMAIN=overtime.local PORT=8080 WEBSERVER=nginx ./deploy.sh --yes
 
 همه‌ی این‌ها هم از طریق متغیر محیطی و هم به‌صورت تعاملی قابل تنظیم‌اند.
 
+## فایل‌های استاتیک: همه محلی، بدون اینترنت
+
+پروژه **هیچ فایلی از اینترنت نمی‌گیرد**. همه‌ی CSS و JS و فونت‌ها کنار پروژه‌اند:
+
+| مورد | پیش‌تر | اکنون |
+|---|---|---|
+| Tailwind | `cdn.tailwindcss.com` (Play CDN) | کامپایل‌شده با Vite در `public/build/` |
+| Alpine.js | `cdn.jsdelivr.net` | داخل همان بسته (`alpinejs@3.14.1` در `package.json`) |
+| فونت‌ها | `fonts.googleapis.com` + `fonts.gstatic.com` | `public/vendor/fonts/` (۱۶ فایل woff2) |
+
+`public/build/` **عمداً در مخزن کامیت شده** (خطش در `.gitignore` غیرفعال است)، تا
+سرور بدون `npm install` و بدون دسترسی به اینترنت بالا بیاید. `deploy.sh` هم npm
+اجرا نمی‌کند؛ فقط بررسی می‌کند بسته سر جایش باشد.
+
+### وقتی استایل یا اسکریپت را تغییر دادید
+
+```bash
+npm ci          # فقط بار اول
+npm run build   # خروجی در public/build
+git add public/build && git commit
+```
+
+اگر کلاس Tailwind تازه‌ای اضافه کردید و اعمال نشد، مسیر فایل را در `content` داخل
+`tailwind.config.js` بررسی کنید - هر کلاسی که آنجا دیده نشود در خروجی نمی‌آید.
+
+### به‌روزرسانی فونت‌ها
+
+```bash
+./scripts/fetch-assets.sh   # دانلود دوباره از Google Fonts + بازنویسی آدرس‌ها
+npm run build
+```
+
+این تنها اسکریپتی است که به اینترنت وصل می‌شود، و فقط روی ماشین توسعه اجرا
+می‌شود - نه روی سرور.
+
 ## دسترسی با IP سرور
 
 برنامه علاوه بر نام دامنه، با **IP سرور** هم بالا می‌آید. اسکریپت IPهای سرور را

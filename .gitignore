@@ -1,6 +1,9 @@
 /.phpunit.cache
 /node_modules
-/public/build
+# public/build عمداً کامیت می‌شود (خط زیر غیرفعال است):
+# پروژه نباید هنگام استقرار چیزی از اینترنت بگیرد، پس خروجی ساخته‌شده‌ی Tailwind و
+# Alpine باید در مخزن باشد تا سرور بدون npm install بالا بیاید.
+# /public/build
 /public/hot
 /public/storage
 /storage/*.key

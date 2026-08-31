@@ -544,6 +544,33 @@ chown -R "$WEB_USER":"$WEB_GROUP" storage bootstrap/cache
 chmod -R ug+rwX storage bootstrap/cache
 ok "دسترسی storage و bootstrap/cache تنظیم شد."
 
+# ── بررسی بستهٔ استاتیک ──
+#
+# پروژه هیچ فایلی از اینترنت نمی‌گیرد: Tailwind و Alpine و فونت‌ها همگی محلی‌اند و
+# خروجی ساخته‌شده (public/build) در مخزن کامیت است. پس اینجا npm اجرا نمی‌شود -
+# فقط بررسی می‌کنیم که بسته سر جایش باشد.
+if [[ -f public/build/manifest.json ]]; then
+    ok "بستهٔ استاتیک موجود است (بدون نیاز به اینترنت)."
+else
+    warn "public/build پیدا نشد؛ صفحات بدون استایل نمایش داده می‌شوند."
+    if command -v npm >/dev/null 2>&1; then
+        info "تلاش برای ساخت بسته با npm …"
+        npm ci >/dev/null 2>&1 || npm install >/dev/null 2>&1 || true
+        npm run build >/dev/null 2>&1 \
+            && ok "بسته ساخته شد." \
+            || warn "ساخت بسته ناموفق بود؛ روی ماشین توسعه «npm run build» بزنید و public/build را کامیت کنید."
+    else
+        warn "npm نصب نیست. روی ماشین توسعه «npm run build» بزنید و public/build را کامیت کنید."
+    fi
+fi
+
+# فونت‌ها و css محلی باید کنار پروژه باشند.
+if [[ -d public/vendor/fonts ]]; then
+    ok "فونت‌های محلی موجودند ($(ls -1 public/vendor/fonts 2>/dev/null | wc -l) فایل)."
+else
+    warn "public/vendor/fonts پیدا نشد؛ فونت‌ها با fallback سیستم نمایش داده می‌شوند."
+fi
+
 # لینک storage عمومی
 [[ -L public/storage ]] || "$PHP_BIN" artisan storage:link >/dev/null 2>&1 || true
 

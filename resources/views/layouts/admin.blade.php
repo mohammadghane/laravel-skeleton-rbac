@@ -11,39 +11,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', __('پنل مدیریت'))</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-    {{-- Tailwind Play CDN for zero-build drop-in. For production, compile via Vite instead
-         (npm i -D tailwindcss, wire tailwind.config.js with the tokens below) and drop this
-         script tag + inline config. --}}
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        // Vazirmatn covers both Persian and Latin glyphs, so we don't need to
-                        // swap font-family when switching locale - only Inter as an LTR-tuned
-                        // fallback for locales where Vazirmatn's Latin metrics feel off.
-                        sans: ['Vazirmatn', 'Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        ink: { DEFAULT: '#1C2333', soft: '#2A3244' },
-                        surface: '#F5F6F3',
-                        pine: { DEFAULT: '#3E6259', 600: '#345049', 100: '#E4ECE9' },
-                        gold: { DEFAULT: '#C9A227', 100: '#FBF3D9' },
-                        brick: { DEFAULT: '#B4432F', 100: '#F7E4E0' },
-                        line: '#E3E5E0',
-                    },
-                    boxShadow: {
-                        card: '0 1px 2px 0 rgb(28 35 51 / 0.04), 0 1px 3px 0 rgb(28 35 51 / 0.06)',
-                    },
-                },
-            },
-        };
-    </script>
+    {{-- استایل و اسکریپت هر دو محلی‌اند: پروژه هیچ فایلی از اینترنت نمی‌گیرد.
+         Tailwind با Vite کامپایل می‌شود (توکن‌های رنگ/فونت در tailwind.config.js)
+         و Alpine داخل همین بسته است. برای بازسازی: npm ci && npm run build --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     {{-- کامپوننت انتخاب چندگانه (فعلاً برای «نقش سازمانی» در فرم کاربر).
          باید پیش از بارگذاری Alpine تعریف شود تا وقتی فرم داخل مودال با fetch لود
@@ -197,8 +168,6 @@
         }
     </script>
 
-    {{-- Alpine.js — declarative state for the sidebar drawer, profile menu, and toasts (no build step). --}}
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
     @stack('styles')
 </head>
