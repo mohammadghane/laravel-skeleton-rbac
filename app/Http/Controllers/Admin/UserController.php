@@ -91,6 +91,8 @@ class UserController extends Controller
         $data = [
             'user' => $user,
             'roles' => Role::all(),
+            // فرم مشترک است؛ نبودِ این کلید باعث می‌شد فهرست نقش‌ها خالی رندر شود.
+            'currentRoleIds' => $user->roles->pluck('id')->all(),
             'editingSelf' => true,
             'units' => \App\Models\Unit::with('deputy')->orderBy('title')->get(),
             'deputies' => \App\Models\Deputy::orderBy('title')->get(),
@@ -188,9 +190,29 @@ class UserController extends Controller
             $data['agency_id'] = $currentUser->id;
         }
 
-        $roles = $currentUser->hasPermission('admin/users')
-            ? ($data['roles'] ?? [Role::where('name', 'user')->value('id')])
-            : null;
+        // ویرایش پروفایل خود کاربر، هرگز نقش‌ها را تغییر نمی‌دهد.
+        //
+        // فرم پروفایل عمداً فیلد «نقش سازمانی» را نشان نمی‌دهد (کاربر نباید نقش
+        // خودش را عوض کند)، پس roles[] اصلاً ارسال نمی‌شود. پیش‌تر این «نبودِ
+        // فیلد» با «کاربر هیچ نقشی انتخاب نکرده» یکی گرفته می‌شد و نقش پیش‌فرض
+        // user جایگزین می‌گشت - یعنی مدیر سیستم با عوض‌کردن رمز خودش، همه‌ی
+        // دسترسی‌هایش را از دست می‌داد.
+        //
+        // بررسی بر اساس مسیر است نه صرفاً برابری شناسه: مدیری که از فرم کاربران
+        // پروفایل خودش را ویرایش می‌کند همچنان باید بتواند نقش‌ها را تغییر دهد.
+        $isProfileRoute = $request->routeIs('admin.profile.store');
+
+        if ($isProfileRoute || !$currentUser->hasPermission('admin/users')) {
+            // null یعنی «به نقش‌ها دست نزن». حتی اگر کسی دستی roles[] بفرستد،
+            // اینجا نادیده گرفته می‌شود تا ارتقای دسترسی ممکن نباشد.
+            $roles = null;
+        } else {
+            // در فرم کاربران، نبودِ roles یعنی مدیر همه را برداشته است؛ آنجا
+            // نقش پیش‌فرض معنا دارد.
+            $roles = $data['roles'] ?? [Role::where('name', 'user')->value('id')];
+            $roles = array_values(array_filter($roles));
+        }
+
         unset($data['roles']);
 
         $isNew = empty($data['id']);

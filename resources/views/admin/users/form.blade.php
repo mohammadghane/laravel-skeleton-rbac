@@ -123,6 +123,27 @@
         @endif
     @endpermission
 
+    {{-- در حالت پروفایل شخصی، نقش‌ها فقط نمایش داده می‌شوند و قابل ویرایش نیستند:
+         کاربر نباید بتواند دسترسی خودش را تغییر دهد. پیش‌تر همین بخش، انتخابگرِ
+         خالی رندر می‌کرد که هم گمراه‌کننده بود («نقشی ندارم») و هم با ذخیره‌ی
+         پروفایل، نقش‌ها را پاک می‌کرد. --}}
+    @if ($editingSelf ?? false)
+        <div>
+            <label class="{{ $label }}">{{ __('نقش سازمانی') }}</label>
+            <div class="flex min-h-[42px] w-full flex-wrap items-center gap-1.5 rounded-lg border border-line bg-surface px-2 py-1.5">
+                @forelse ($user?->roles ?? [] as $role)
+                    <span class="inline-flex items-center rounded-md bg-pine-100 px-2 py-1 text-xs font-medium text-pine">
+                        {{ $role->name }}
+                    </span>
+                @empty
+                    <span class="px-1 text-xs text-ink/40">{{ __('نقشی به شما اختصاص داده نشده است.') }}</span>
+                @endforelse
+            </div>
+            <p class="mt-1.5 text-xs text-ink/40">
+                {{ __('تغییر نقش سازمانی فقط توسط مدیر سیستم و از فهرست پرسنل امکان‌پذیر است.') }}
+            </p>
+        </div>
+    @else
     @permission('admin/users')
         {{-- انتخاب چندگانه‌ی نقش‌ها: به‌جای <select multiple> که در موبایل و RTL تجربه‌ی
              بدی دارد (نیاز به Ctrl+Click)، یک کامپوننت جست‌وجوپذیر با Alpine ساخته شده
@@ -181,6 +202,7 @@
             <span class="mt-1 block text-xs text-ink/40">{{ __('می‌توانید چند نقش را هم‌زمان انتخاب کنید.') }}</span>
         </div>
     @endpermission
+    @endif
 
     <div>
         <label class="{{ $label }}">{{ __('رمز عبور جدید') }}</label>
