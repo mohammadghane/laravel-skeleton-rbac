@@ -53,29 +53,4 @@ return [
             ],
         ],
     ],
-    'shipping' => [
-        'title' => 'ارسال و پست',
-        'type' => 'shop',
-        'items' => [
-            'post_cost_type' => [
-                'title' => 'روش محاسبه هزینه ارسال',
-                'type' => 'select',
-                'has_pattern' => true,
-                'default_value' => '',
-                'options' => fn () => [
-                    ['value' => 'fixed', 'text' => 'هزینه ثابت'],
-                    ['value' => 'weight', 'text' => 'هزینه متغیر بر اساس وزن سبد خرید'],
-                    ...(auth()->user()?->hasPermission('admin/post-cost')
-                        ? [['value' => 'cart_price', 'text' => 'هزینه متغیر بر اساس مبلغ کل سبد خرید و موقعیت جغرافیایی']]
-                        : []),
-                ],
-            ],
-            'business_hours' => [
-                'title' => 'ساعات کاری',
-                'type' => 'from_to',
-                'has_pattern' => true,
-                'default_value' => ['from' => '', 'to' => ''],
-            ],
-        ],
-    ],
 ];
