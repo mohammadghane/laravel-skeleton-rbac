@@ -603,6 +603,35 @@ step "۴) پیکربندی $WEBSERVER"
 
 DOC_ROOT="$APP_DIR/public"
 
+# آدرس‌های IP سرور، برای این‌که برنامه با IP هم بالا بیاید نه فقط با نام دامنه.
+#
+# چرا لازم است: vhost فقط با ServerName/server_name تطبیق می‌کند. درخواستی که با
+# IP می‌آید Host عددی دارد و با نام دامنه جور نمی‌شود، پس یا به vhost پیش‌فرض
+# سیستم می‌رود یا اصلاً پاسخی نمی‌گیرد.
+detect_server_ips() {
+    local ips=""
+
+    if command -v hostname >/dev/null 2>&1; then
+        ips="$(hostname -I 2>/dev/null || true)"
+    fi
+
+    # جایگزین: روی سیستم‌هایی که hostname -I ندارند (مثلاً برخی RHEL)
+    if [[ -z "${ips// }" ]] && command -v ip >/dev/null 2>&1; then
+        ips="$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | tr '\n' ' ')"
+    fi
+
+    # 127.0.0.1 حذف نمی‌شود چون دسترسی محلی هم مفید است، ولی تکراری‌ها را می‌گیریم.
+    printf '%s' "$(printf '%s\n' $ips | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+}
+
+SERVER_IPS="${SERVER_IPS:-$(detect_server_ips)}"
+
+if [[ -n "$SERVER_IPS" ]]; then
+    ok "دسترسی با IP فعال شد: $SERVER_IPS"
+else
+    warn "IP سرور تشخیص داده نشد؛ دسترسی فقط با نام دامنه ممکن خواهد بود."
+fi
+
 if [[ "$WEBSERVER" == "apache" ]]; then
     if [[ "$OS_FAMILY" == "debian" ]]; then
         SITES_DIR="/etc/apache2/sites-available"
@@ -640,7 +669,10 @@ if [[ "$WEBSERVER" == "apache" ]]; then
 # ساخته‌شده توسط deploy.sh - پروژه‌ی مدیریت اضافه‌کار پرسنل
 <VirtualHost *:${PORT}>
     ServerName ${DOMAIN}
-    ServerAlias www.${DOMAIN}
+    # ServerAlias با IP سرور، تا دسترسی با آدرس عددی هم کار کند. اولین vhostِ
+    # هر پورت در Apache نقش default را دارد، ولی وقتی vhostهای دیگری هم روی
+    # سیستم باشند ترتیب قطعی نیست - پس IP را صریح اعلام می‌کنیم.
+    ServerAlias www.${DOMAIN} ${SERVER_IPS}
     DocumentRoot ${DOC_ROOT}
 
     <Directory ${DOC_ROOT}>
@@ -677,10 +709,15 @@ else
     cat > "$VHOST" <<EOF
 # ساخته‌شده توسط deploy.sh - پروژه‌ی مدیریت اضافه‌کار پرسنل
 server {
-    listen ${PORT};
-    listen [::]:${PORT};
+    # default_server یعنی این بلاک به درخواست‌هایی که با هیچ server_name دیگری
+    # تطبیق نمی‌کنند هم پاسخ می‌دهد - از جمله درخواست با IP سرور.
+    listen ${PORT} default_server;
+    listen [::]:${PORT} default_server;
 
-    server_name ${DOMAIN} www.${DOMAIN};
+    # «_» یک نام بی‌معناست که هرگز با Host واقعی تطبیق نمی‌کند؛ در کنار
+    # default_server یعنی «هر چیزی که به اینجا رسید». دامنه‌ها را هم صریح
+    # می‌آوریم تا اگر بعداً سایت دیگری default شد، این یکی همچنان کار کند.
+    server_name ${DOMAIN} www.${DOMAIN} ${SERVER_IPS} _;
     root ${DOC_ROOT};
     index index.php index.html;
 
@@ -704,7 +741,19 @@ server {
 EOF
     ok "فایل server block ساخته شد: $VHOST"
 
-    [[ -n "$LINK" ]] && ln -sf "$VHOST" "$LINK"
+    if [[ -n "$LINK" ]]; then
+        ln -sf "$VHOST" "$LINK"
+    fi
+
+    # اگر سایت دیگری از قبل default_server همین پورت را گرفته باشد، nginx بالا
+    # نمی‌آید («duplicate default server»). آن‌وقت default_server خودمان را
+    # برمی‌داریم - دسترسی با IP همچنان کار می‌کند، چون IPها صریح در
+    # server_name آمده‌اند و به default_server وابسته نیستند.
+    if ! nginx -t >/dev/null 2>&1 && nginx -t 2>&1 | grep -q 'duplicate default server'; then
+        warn "سایت دیگری default_server این پورت است؛ آن را از vhost این پروژه برمی‌داریم."
+        sed -i 's/ default_server;/;/g' "$VHOST"
+    fi
+
     nginx -t >/dev/null 2>&1 || nginx -t || die "پیکربندی nginx خطا دارد."
 fi
 
@@ -731,11 +780,33 @@ URL="http://${DOMAIN}"
 sleep 2
 code="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: ${DOMAIN}" "http://127.0.0.1:${PORT}/" 2>/dev/null || echo 000)"
 
+# دسترسی با IP جداگانه بررسی می‌شود: ممکن است با نام دامنه کار کند ولی با IP نه
+# (اگر vhost دیگری default_server باشد). بدون این بررسی، خرابی تا اولین کاربر
+# پنهان می‌ماند.
+ip_first="$(printf '%s\n' $SERVER_IPS | head -1)"
+if [[ -n "$ip_first" ]]; then
+    ip_code="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: ${ip_first}" "http://127.0.0.1:${PORT}/" 2>/dev/null || echo 000)"
+    case "$ip_code" in
+        200|302) ok "دسترسی با IP کار می‌کند (HTTP $ip_code)" ;;
+        *)       warn "دسترسی با IP پاسخ $ip_code داد؛ ممکن است vhost دیگری روی این پورت اولویت داشته باشد." ;;
+    esac
+fi
+
 case "$code" in
     200|302)
         ok "سایت پاسخ داد (HTTP $code)"
         printf '\n%s✔ راه‌اندازی کامل شد.%s\n' "$c_green$c_bold" "$c_reset"
         printf '  آدرس: %s%s%s\n' "$c_bold" "$URL" "$c_reset"
+
+        # آدرس IP هم نمایش داده می‌شود، چون روی سروری که DNS/hosts تنظیم نشده
+        # تنها راه دسترسی همین است.
+        for ip in $SERVER_IPS; do
+            if [[ "$PORT" == "80" ]]; then
+                printf '        %shttp://%s%s\n' "$c_bold" "$ip" "$c_reset"
+            else
+                printf '        %shttp://%s:%s%s\n' "$c_bold" "$ip" "$PORT" "$c_reset"
+            fi
+        done
 
         # رمزهای ساخته‌شده فقط همین یک‌بار نمایش داده می‌شوند؛ در .env ذخیره‌اند
         # ولی رمز admin هش شده و بازیابی‌شدنی نیست.
