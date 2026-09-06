@@ -71,6 +71,40 @@ class PersonnelSyncService
     /** @var list<string> خطای رکوردهایی که همگام نشدند */
     private array $errors = [];
 
+
+    private function getAccessToken(): string
+    {
+        $response = Http::asForm()
+            ->timeout(30)
+            ->post(env('AUTH_URL'), [
+                'client_id' => env('AUTH_CLIENT_ID'),
+                'client_secret' => env('AUTH_CLIENT_SECRET'),
+                'username' => env('AUTH_USERNAME'),
+                'password' => env('AUTH_PASSWORD'),
+                'grant_type' => 'password',
+                'Scope' => 'openid',
+                'user_agent' => 'sanaGSV1',
+            ]);
+
+        if (!$response->successful()) {
+            throw new \Exception(
+                'خطا در دریافت Token: ' .
+                $response->status() .
+                ' - ' .
+                $response->body()
+            );
+        }
+
+        $token = $response->json('access_token');
+
+        if (!$token) {
+            throw new \Exception(
+                'access_token در پاسخ سرویس وجود ندارد.'
+            );
+        }
+
+        return $token;
+    }
     /**
      * دریافت داده از وب‌سرویس و همگام‌سازی.
      *
@@ -84,8 +118,11 @@ class PersonnelSyncService
             throw new \RuntimeException(__('آدرس وب‌سرویس پرسنلی تنظیم نشده است (PERSONNEL_SYNC_URL در .env).'));
         }
 
+        $token = $this->getAccessToken();
+
         $response = Http::timeout((int) config('services.personnel.timeout', 30))
             ->acceptJson()
+            ->withToken($token)
             ->get($url);
 
         if (!$response->successful()) {
@@ -96,7 +133,7 @@ class PersonnelSyncService
 
         // برخی سرویس‌ها آرایه را داخل یک کلید می‌گذارند؛ هر دو حالت را می‌پذیریم.
         if (is_array($records) && !array_is_list($records)) {
-            $records = collect($records)->first(fn ($v) => is_array($v)) ?? [];
+            $records = collect($records)->first(fn($v) => is_array($v)) ?? [];
         }
 
         if (!is_array($records)) {
@@ -133,13 +170,11 @@ class PersonnelSyncService
         // پیش‌بارگذاری کاربران موجود: بدون این، برای هر رکورد دو SELECT جداگانه می‌خورد
         // و روی صدها رکورد از محدودیت زمانی PHP در حالت وب عبور می‌کرد.
         $usersByCode = User::whereNotNull('personnel_code')->get()->keyBy(
-            fn (User $user) => (string) $user->personnel_code
+            fn(User $user) => (string) $user->personnel_code
         );
         $usersByUsername = User::whereNull('personnel_code')->whereNotNull('username')->get()->keyBy('username');
 
-        DB::transaction(function () use (
-            $records, $byCode, &$contractTypes, &$positions, &$deputies, &$units, $usersByCode, $usersByUsername
-        ) {
+        DB::transaction(function () use ($records, $byCode, &$contractTypes, &$positions, &$deputies, &$units, $usersByCode, $usersByUsername) {
             // مرحله‌ی ۱: ساخت پرسنل، سمت‌ها، قراردادها و معاونت‌ها.
             foreach ($records as $index => $record) {
                 $rowNumber = $index + 1;
@@ -190,7 +225,7 @@ class PersonnelSyncService
         // رشته‌ی خروجی cleanText انجام می‌شود و Collection::get نوع‌حساس است. بدون این
         // cast، همه‌ی جست‌وجوها بی‌صدا null برمی‌گرداندند و چارت ساخته نمی‌شد.
         $usersByCode = User::whereNotNull('personnel_code')->get()->keyBy(
-            fn (User $user) => (string) $user->personnel_code
+            fn(User $user) => (string) $user->personnel_code
         );
 
         // معاونِ هر معاونت: کسی که PostType=2 دارد و زیرمجموعه‌اش در آن معاونت است.
@@ -248,8 +283,10 @@ class PersonnelSyncService
             // هم‌زمان «مستقیمِ معاونت» هم باشد - نگاه کنید به User::effectiveDeputyId().
             $memberCodes = [];
             foreach ($records as $record) {
-                if ($this->cleanText($record['ManagerPersonnelCode'] ?? null) === $managerCode
-                    && $this->cleanText($record['PersonnelCode'] ?? null) !== $managerCode) {
+                if (
+                    $this->cleanText($record['ManagerPersonnelCode'] ?? null) === $managerCode
+                    && $this->cleanText($record['PersonnelCode'] ?? null) !== $managerCode
+                ) {
                     $memberCodes[] = $this->cleanText($record['PersonnelCode'] ?? null);
                 }
             }
