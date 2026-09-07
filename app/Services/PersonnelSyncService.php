@@ -76,6 +76,7 @@ class PersonnelSyncService
     {
         $response = Http::asForm()
             ->timeout(30)
+            ->withoutVerifying()
             ->post('https://esb.krrw.ir/auth/realms/pardaza/protocol/openid-connect/token', [
                 'client_id' => 'personels-ws',
                 'client_secret' => 'VxNX4w8GlM6u7gWnv0TvircKf7Fq6oh5',
@@ -123,6 +124,7 @@ class PersonnelSyncService
         $response = Http::timeout((int) config('services.personnel.timeout', 30))
             ->acceptJson()
             ->withToken($token)
+            ->withoutVerifying()
             ->get($url);
 
         if (!$response->successful()) {
