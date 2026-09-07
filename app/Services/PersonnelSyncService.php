@@ -76,11 +76,11 @@ class PersonnelSyncService
     {
         $response = Http::asForm()
             ->timeout(30)
-            ->post(env('AUTH_URL'), [
-                'client_id' => env('AUTH_CLIENT_ID'),
-                'client_secret' => env('AUTH_CLIENT_SECRET'),
-                'username' => env('AUTH_USERNAME'),
-                'password' => env('AUTH_PASSWORD'),
+            ->post('https://esb.krrw.ir/auth/realms/pardaza/protocol/openid-connect/token', [
+                'client_id' => 'personels-ws',
+                'client_secret' => 'VxNX4w8GlM6u7gWnv0TvircKf7Fq6oh5',
+                'username' => 'personels-ws',
+                'password' => '045cd8d0bd5-2',
                 'grant_type' => 'password',
                 'Scope' => 'openid',
                 'user_agent' => 'sanaGSV1',
