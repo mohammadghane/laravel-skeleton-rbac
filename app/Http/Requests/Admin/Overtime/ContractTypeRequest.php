@@ -14,7 +14,11 @@ class ContractTypeRequest extends FormRequest
 
     public function rules(): array
     {
-        $id = $this->route('contract_type')?->id;
+        // نام پارامتر باید دقیقاً با مسیر یکی باشد: routes/overtime.php از
+        // {contractType} استفاده می‌کند. با نام اشتباه، route() بی‌سروصدا null
+        // برمی‌گرداند، ignore بی‌اثر می‌شود و رکورد با خودش تداخل پیدا می‌کند -
+        // یعنی ذخیره‌ی قرارداد با عنوانِ بدون تغییر، خطای «تکراری» می‌داد.
+        $id = $this->route('contractType')?->id;
 
         return [
             'title' => ['required', 'string', 'max:190', Rule::unique('contract_types', 'title')->ignore($id)],
