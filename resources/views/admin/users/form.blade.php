@@ -9,14 +9,7 @@
     @php $input = 'w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-pine focus:outline-none focus:ring-2 focus:ring-pine/20'; @endphp
     @php $label = 'mb-1.5 block text-sm font-medium text-ink/70'; @endphp
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-            <label class="{{ $label }}">{{ __('جنسیت') }}</label>
-            <select name="gender" required class="{{ $input }}">
-                <option value="1" @selected(($user->gender ?? null) == 1)>{{ __('مرد') }}</option>
-                <option value="2" @selected(($user->gender ?? null) == 2)>{{ __('زن') }}</option>
-            </select>
-        </div>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="{{ $label }}">{{ __('نام') }}</label>
             <input class="{{ $input }}" name="name" required value="{{ old('name', $user->name ?? '') }}">
@@ -27,7 +20,7 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label class="{{ $label }}">{{ __('نام کاربری') }}</label>
             <input class="{{ $input }}" name="username" required value="{{ old('username', $user->username ?? '') }}">
@@ -44,22 +37,18 @@
             >
             <span class="mt-1 block text-xs text-ink/40">{{ __('اختیاری؛ در صورت ورود باید ۱۱ رقم و با ۰۹ شروع شود.') }}</span>
         </div>
-        <div>
-            <label class="{{ $label }}">{{ __('کد ملی') }}</label>
-            <input class="{{ $input }} font-mono" name="national_code" value="{{ old('national_code', $user->national_code ?? '') }}">
-        </div>
     </div>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-            <label class="{{ $label }}">{{ __('ایمیل') }}</label>
-            <input class="{{ $input }}" name="email" value="{{ old('email', $user->email ?? '') }}">
-        </div>
         <div>
             <label class="{{ $label }}">{{ __('تلفن ثابت') }}</label>
             <input class="{{ $input }} font-mono" name="tell" value="{{ old('tell', $user->tell ?? '') }}">
         </div>
     </div>
+
+    {{-- فیلدهای جنسیت، ایمیل و کد ملی عمداً از فرم حذف شده‌اند (درخواست کارفرما).
+         ستون‌ها در دیتابیس باقی مانده‌اند و اعتبارسنجی‌شان nullable است، پس مقادیر
+         قبلی پاک نمی‌شوند. ورود با ایمیل هم برای کاربرانی که ایمیل دارند کار می‌کند. --}}
 
     {{-- فیلدهای آدرس (استان/شهر/کد پستی/آدرس) عمداً از فرم حذف شده‌اند: در این سامانه
          کاربردی ندارند. ستون‌ها در دیتابیس باقی مانده‌اند و قوانین اعتبارسنجی‌شان هم

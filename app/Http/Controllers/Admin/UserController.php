@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -180,6 +181,14 @@ class UserController extends Controller
             $data['password'] = Hash::make($data['password']);
         } else {
             unset($data['password']);
+
+            // ستون password در جدول NOT NULL است. برای کاربر جدیدی که رمز برایش
+            // تعیین نشده، رمز تصادفیِ دورانداختنی می‌گذاریم تا ثبت با خطای SQL
+            // شکست نخورد. کاربر تا وقتی رمز واقعی تنظیم نشود نمی‌تواند وارد شود
+            // (همان الگوی PersonnelSyncService برای پرسنلِ آمده از وب‌سرویس).
+            if (empty($data['id'])) {
+                $data['password'] = Hash::make(Str::random(40));
+            }
         }
 
         if ($currentUser->is_agency) {

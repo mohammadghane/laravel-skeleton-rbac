@@ -23,7 +23,12 @@ class UserRequest extends FormRequest
             'id' => ['nullable', 'integer', 'exists:users,id'],
             'name' => ['required', 'string', 'max:255'],
             'family' => ['nullable', 'string', 'max:255'],
-            'gender' => ['required', 'in:1,2'], // GENDER_MALE / GENDER_FEMALE constants -> replace with an enum
+            // جنسیت، ایمیل و کد ملی از فرم حذف شده‌اند (درخواست کارفرما) ولی قوانین
+            // باقی می‌مانند تا اگر جایی (سرویس، ایمپورت، API) مقدار بفرستد اعتبارسنجی
+            // شود. جنسیت دیگر required نیست - وگرنه همان باگی تکرار می‌شد که فیلدهای
+            // آدرس داشتند: قانونِ required برای فیلدی که در فرم نیست، ثبت هر کاربر را
+            // غیرممکن می‌کند.
+            'gender' => ['nullable', 'in:1,2'],
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($userId)],
             // فرمت استاندارد شماره موبایل: ۱۱ رقم با صفر ابتدایی (مثل 09121111111).
             // ورودی در prepareForValidation نرمال‌سازی می‌شود، بنابراین کاربر می‌تواند

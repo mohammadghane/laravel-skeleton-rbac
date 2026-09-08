@@ -42,8 +42,19 @@ return [
     'personnel' => [
         'url' => env('PERSONNEL_SYNC_URL', 'http://127.0.0.1/api/getpersonels.json'),
         'timeout' => env('PERSONNEL_SYNC_TIMEOUT', 30),
-        // دامنه‌ی ایمیل جایگزین: سرویس ایمیل نمی‌دهد ولی ستون NOT NULL است.
-        'email_domain' => env('PERSONNEL_EMAIL_DOMAIN', 'personnel.local'),
+
+        // احراز هویت OAuth سرویس پرسنلی.
+        //
+        // این مقادیر پیش‌تر مستقیم داخل PersonnelSyncService نوشته شده بودند؛ چون
+        // مخزن عمومی است، client_secret و رمز عبور نباید در سورس باشند. حالا از
+        // .env خوانده می‌شوند (و .env در .gitignore است).
+        'token_url' => env('PERSONNEL_TOKEN_URL'),
+        'client_id' => env('PERSONNEL_CLIENT_ID'),
+        'client_secret' => env('PERSONNEL_CLIENT_SECRET'),
+        'username' => env('PERSONNEL_WS_USERNAME'),
+        'password' => env('PERSONNEL_WS_PASSWORD'),
+        // گواهی SSL سرویس داخلی معتبر نیست؛ فقط در صورت نیاز true کنید.
+        'skip_ssl_verify' => env('PERSONNEL_SKIP_SSL_VERIFY', false),
     ],
 
 ];

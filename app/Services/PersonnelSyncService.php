@@ -72,16 +72,33 @@ class PersonnelSyncService
     private array $errors = [];
 
 
+    /**
+     * دریافت access_token از سرویس احراز هویت.
+     *
+     * اطلاعات ورود از config/services.php (و در نهایت .env) خوانده می‌شود، نه از
+     * داخل کد: مخزن عمومی است و client_secret/رمز نباید در سورس باشد.
+     */
     private function getAccessToken(): string
     {
-        $response = Http::asForm()
-            ->timeout(30)
-            ->withoutVerifying()
-            ->post('https://esb.krrw.ir/auth/realms/pardaza/protocol/openid-connect/token', [
-                'client_id' => 'personels-ws',
-                'client_secret' => 'VxNX4w8GlM6u7gWnv0TvircKf7Fq6oh5',
-                'username' => 'personels-ws',
-                'password' => '045cd8d0bd5-2',
+        $tokenUrl = config('services.personnel.token_url');
+
+        if (!$tokenUrl) {
+            throw new \RuntimeException(
+                'آدرس سرویس احراز هویت تنظیم نشده است؛ PERSONNEL_TOKEN_URL را در .env مقداردهی کنید.'
+            );
+        }
+
+        $request = Http::asForm()->timeout(30);
+
+        if (config('services.personnel.skip_ssl_verify')) {
+            $request = $request->withoutVerifying();
+        }
+
+        $response = $request->post($tokenUrl, [
+                'client_id' => config('services.personnel.client_id'),
+                'client_secret' => config('services.personnel.client_secret'),
+                'username' => config('services.personnel.username'),
+                'password' => config('services.personnel.password'),
                 'grant_type' => 'password',
                 'Scope' => 'openid',
                 'user_agent' => 'sanaGSV1',
@@ -476,12 +493,15 @@ class PersonnelSyncService
             return;
         }
 
-        // ستون‌های email و password در این جدول NOT NULL هستند ولی سرویس آن‌ها را نمی‌دهد؛
-        // مقدار جایگزینِ یکتا می‌سازیم تا رکورد معتبر باشد. کاربر تا وقتی HR رمز واقعی
-        // تنظیم نکند نمی‌تواند وارد شود (رمز تصادفی و دورانداختنی است).
+        // ستون password در این جدول NOT NULL است ولی سرویس آن را نمی‌دهد؛ رمز تصادفیِ
+        // دورانداختنی می‌گذاریم تا رکورد معتبر باشد. کاربر تا وقتی HR رمز واقعی تنظیم
+        // نکند نمی‌تواند وارد شود.
+        //
+        // ایمیل دیگر ساخته نمی‌شود: ستون nullable شد و فیلدش از فرم حذف شده، پس
+        // ساختن آدرس جعلی («کدپرسنلی@personnel.local») فقط داده‌ی بی‌معنا تولید
+        // می‌کرد که ممکن بود جایی به‌عنوان ایمیل واقعی استفاده شود.
         User::create($attributes + [
             'username' => $code,
-            'email' => $code . '@' . config('services.personnel.email_domain', 'personnel.local'),
             'password' => Hash::make(Str::random(40)),
         ]);
         $this->stats['personnel_created']++;

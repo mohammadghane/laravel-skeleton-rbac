@@ -218,7 +218,12 @@ class PersonnelSyncTest extends TestCase
 
     public function test_it_fetches_from_the_web_service(): void
     {
-        Http::fake(['*' => Http::response([$this->record()], 200)]);
+        // سرویس دو درخواست می‌زند: اول توکن، بعد داده. fake عمومی («*») هر دو را
+        // با یک پاسخ جواب می‌داد و مرحله‌ی توکن شکست می‌خورد.
+        Http::fake([
+            '*openid-connect/token' => Http::response(['access_token' => 'fake-token'], 200),
+            '*' => Http::response([$this->record()], 200),
+        ]);
 
         $result = $this->service()->syncFromUrl('http://example.test/api/getpersonels.json');
 
@@ -228,7 +233,12 @@ class PersonnelSyncTest extends TestCase
 
     public function test_it_fails_loudly_when_the_service_is_unreachable(): void
     {
-        Http::fake(['*' => Http::response('', 500)]);
+        // توکن سالم گرفته می‌شود ولی خودِ سرویسِ داده خطا می‌دهد - یعنی همان حالتی
+        // که این تست باید بپوشاند (نه شکستِ مرحله‌ی احراز هویت).
+        Http::fake([
+            '*openid-connect/token' => Http::response(['access_token' => 'fake-token'], 200),
+            '*' => Http::response('', 500),
+        ]);
 
         $this->expectException(\RuntimeException::class);
         $this->service()->syncFromUrl('http://example.test/api/getpersonels.json');
