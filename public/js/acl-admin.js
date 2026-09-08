@@ -59,11 +59,10 @@ document.addEventListener('click', async (e) => {
             const body = document.querySelector('#admin-modal .modal-body');
             body.innerHTML = await res.text();
 
-            // Alpine only scans the DOM on load; markup injected afterwards via innerHTML
-            // stays inert unless we ask it to initialise this subtree. Without this the
-            // x-data components inside modal forms (e.g. the roles multiselect) silently
-            // do nothing.
-            if (window.Alpine?.initTree) window.Alpine.initTree(body);
+            // عمداً initTree دستی صدا زده نمی‌شود: Alpine پس از start() یک
+            // MutationObserver دارد و گره‌های تزریق‌شده را خودش راه‌اندازی می‌کند.
+            // فراخوانی دستی، همان درخت را بار دوم init می‌کرد و x-for دوبار رندر
+            // می‌شد - مثلاً فهرست نقش‌ها در فرم کاربر دوتایی نمایش داده می‌شد.
 
             openAdminModal();
         } catch {
