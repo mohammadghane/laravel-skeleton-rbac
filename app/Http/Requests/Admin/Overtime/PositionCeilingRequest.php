@@ -18,7 +18,7 @@ class PositionCeilingRequest extends FormRequest
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
             'ceiling_per_person' => ['required', 'numeric', 'min:0'],
-            // سقف «عادی» در اختیار مدیر واحد (بازنگری بند ۴.۲). اختیاری است تا سمت‌هایی که
+            // سقف «عادی» در اختیار مدیر واحد. اختیاری است تا سمت‌هایی که
             // فقط سقف مازاد دارند هم قابل ثبت بمانند.
             'manager_ceiling_per_person' => ['nullable', 'numeric', 'min:0'],
         ];

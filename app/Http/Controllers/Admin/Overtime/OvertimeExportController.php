@@ -8,7 +8,7 @@ use App\Support\Jalali;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
-/** خروجی اکسل ماهانه‌ی اضافه‌کار برای سیستم مالی - فقط HR (بند ۴.۷ سند). */
+/** خروجی اکسل ماهانه‌ی اضافه‌کار برای سیستم مالی - فقط HR. */
 class OvertimeExportController extends Controller
 {
 

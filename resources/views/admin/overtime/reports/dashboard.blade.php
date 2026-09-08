@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    {{-- هشدارهای سقف (بند ۴.۷) --}}
+    {{-- هشدارهای سقف --}}
     @if ($warnings->isNotEmpty())
         <div class="mb-6 {{ $card }} p-5">
             <h3 class="mb-3 text-base font-semibold text-ink">{{ __('هشدارهای سقف') }}</h3>
@@ -114,7 +114,7 @@
         </div>
     </div>
 
-    {{-- نمودار مقایسه‌ای معاونت‌ها + میانگین هر معاونت (بند ۴.۷) --}}
+    {{-- نمودار مقایسه‌ای معاونت‌ها + میانگین هر معاونت --}}
     @if ($isPrivileged && $comparison->isNotEmpty())
         <div class="mt-6 {{ $card }} p-5">
             <h3 class="mb-4 text-base font-semibold text-ink">{{ __('مقایسه‌ی معاونت‌ها') }}</h3>

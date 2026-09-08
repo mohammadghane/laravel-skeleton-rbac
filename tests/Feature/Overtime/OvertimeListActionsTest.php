@@ -24,7 +24,7 @@ use Tests\TestCase;
  * همان جدول باشد» و «اکشن ارسال برای بررسی معاونت در همان صفحه‌ی لیست اضافه شود».
  *
  * نکته‌ی کلیدی این تست‌ها: ثبت گروهی نباید میان‌بری برای دورزدن قواعد باشد. همان
- * پنجره‌ی زمانی (بند ۴.۶)، وضعیت قابل‌ویرایش (بند ۴.۵) و سقف گروهی (بند ۴.۴) که در
+ * پنجره‌ی زمانی، وضعیت قابل‌ویرایش و سقف گروهی که در
  * ثبت تکی اعمال می‌شود، اینجا هم اعمال می‌گردد - با این تفاوت که به‌جای شکست کل
  * عملیات، موارد ناموفق با ذکر دلیل گزارش می‌شوند.
  *
@@ -168,7 +168,7 @@ class OvertimeListActionsTest extends TestCase
 
     public function test_bulk_entry_cannot_bypass_the_group_ceiling(): void
     {
-        // بند ۴.۴: سقف گروهی = تعداد نفرات × سقف هر نفر. با سقف ۹۰ برای «کارشناس» و
+        // سقف گروهی = تعداد نفرات × سقف هر نفر. با سقف ۹۰ برای «کارشناس» و
         // ۲ نفر، مجموع مجاز ۱۸۰ ساعت است؛ درخواست ۱۰۰ ساعت برای هر دو (۲۰۰) رد می‌شود.
         $manager = $this->manager();
         $this->subordinate();
@@ -186,7 +186,7 @@ class OvertimeListActionsTest extends TestCase
 
     public function test_locked_periods_are_skipped_not_overwritten(): void
     {
-        // بند ۴.۵: پس از ارسال به معاونت، مدیر دیگر حق ویرایش ندارد - حتی گروهی.
+        // پس از ارسال به معاونت، مدیر دیگر حق ویرایش ندارد - حتی گروهی.
         $manager = $this->manager();
         $locked = $this->subordinate();
         $open = $this->subordinate();
@@ -225,7 +225,7 @@ class OvertimeListActionsTest extends TestCase
     /**
      * ویرایش درون‌خطی روی همان endpoint ثبت تکی کار می‌کند، اما جدول برای به‌روزرسانی
      * ستون‌های «جمع» و «قابل پرداخت» به اعداد محاسبه‌شده‌ی سرور نیاز دارد - وگرنه
-     * مجبور می‌شد منطق سقف بند ۴.۲ را در جاوااسکریپت بازنویسی کند.
+     * مجبور می‌شد منطق سقف را در جاوااسکریپت بازنویسی کند.
      */
     public function test_inline_edit_returns_server_computed_columns(): void
     {
@@ -249,7 +249,7 @@ class OvertimeListActionsTest extends TestCase
 
     public function test_inline_edit_reports_the_capped_amount_when_over_the_overall_ceiling(): void
     {
-        // بند ۴.۲: سقف کلی قرارداد ۲۵۰ است؛ با سقف سمت ۹۰ نمی‌توان از آن گذشت مگر
+        // سقف کلی قرارداد ۲۵۰ است؛ با سقف سمت ۹۰ نمی‌توان از آن گذشت مگر
         // آنکه مازاد/ویژه اضافه شود. اینجا مازاد را مستقیم می‌گذاریم تا capping دیده شود.
         $manager = $this->manager();
         $person = $this->subordinate();
@@ -291,7 +291,7 @@ class OvertimeListActionsTest extends TestCase
         )->assertForbidden();
     }
 
-    /** ارسال به معاونت از همان صفحه‌ی فهرست (بند ۴.۵). */
+    /** ارسال به معاونت از همان صفحه‌ی فهرست. */
     private function submitToDeputy(User $manager, array $payload = [])
     {
         return $this->actingAs($manager)->postJson(route('admin.overtime.periods.bulk-submit'), $payload + [
@@ -347,7 +347,7 @@ class OvertimeListActionsTest extends TestCase
 
     public function test_submitting_locks_the_period_against_further_manager_edits(): void
     {
-        // هسته‌ی بند ۴.۵: ارسال یعنی قفل. اگر این نشکند، مدیر می‌تواند پس از ارسال
+        // هسته‌ی ارسال یعنی قفل. اگر این نشکند، مدیر می‌تواند پس از ارسال
         // عدد را عوض کند و معاونت چیزی متفاوت با آنچه تایید کرده ببیند.
         $manager = $this->manager();
         $person = $this->subordinate();

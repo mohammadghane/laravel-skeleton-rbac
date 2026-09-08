@@ -149,7 +149,7 @@ class UserController extends Controller
             'user' => $user?->load('roles'),
             'roles' => Role::all(),
             'currentRoleIds' => $user?->roles->pluck('id')->all() ?? [],
-            // فیلدهای چارت سازمانی برای ماژول اضافه‌کار (بند ۴.۱)
+            // فیلدهای چارت سازمانی برای ماژول اضافه‌کار
             'units' => \App\Models\Unit::with('deputy')->orderBy('title')->get(),
             'deputies' => \App\Models\Deputy::orderBy('title')->get(),
             'positions' => \App\Models\Position::orderBy('title')->get(),

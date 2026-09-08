@@ -28,7 +28,7 @@
         ),
     ])
 
-    {{-- وضعیت پنجره‌ی ثبت (بند ۴.۶) --}}
+    {{-- وضعیت پنجره‌ی ثبت --}}
     @if (!$ceilingVersion)
         <div class="mb-4 rounded-xl border border-brick/30 bg-brick-100 px-4 py-3 text-sm text-brick">
             {{ __('برای نوع قرارداد این پرسنل در این ماه، سقف و روز فعال‌سازی تعریف نشده است؛ ثبت اضافه‌کار ممکن نیست.') }}
@@ -70,7 +70,7 @@
                         <dd class="font-mono text-ink/70">{{ $period?->overallCeiling() ?? ($ceilingVersion?->overall_ceiling ?? __('بدون سقف')) }}</dd>
                     </div>
 
-                    {{-- بند ۴.۲: عدد نهایی ارسالی به واحد مالی --}}
+                    {{-- عدد نهایی ارسالی به واحد مالی --}}
                     <div class="flex items-center justify-between rounded-lg {{ $exceeds ? 'bg-brick-100' : 'bg-pine-100' }} px-3 py-2">
                         <dt class="font-medium {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ __('قابل پرداخت') }}</dt>
                         <dd class="font-mono font-bold {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ $period?->payableHours() ?? '0.00' }}</dd>
@@ -79,7 +79,7 @@
 
                 @if ($exceeds)
                     <p class="mt-3 rounded-lg border border-brick/20 bg-brick-100 px-3 py-2 text-xs text-brick">
-                        {{ __('مجموع ثبت‌شده از سقف کلی قرارداد بیشتر است؛ طبق بند ۴.۲ فقط مقدار سقف به واحد مالی ارسال می‌شود.') }}
+                        {{ __('مجموع ثبت‌شده از سقف کلی قرارداد بیشتر است؛ فقط مقدار سقف به واحد مالی ارسال می‌شود.') }}
                         ({{ __('کسر') }}: <span class="font-mono">{{ $period->cappedHours() }}</span> {{ __('ساعت') }})
                     </p>
                 @endif
@@ -102,7 +102,7 @@
                         <div class="flex justify-between"><dt class="text-ink/50">{{ __('ضریب ریالی') }}</dt><dd class="font-mono text-ink/70">{{ $period->rial_coefficient ?? '—' }}</dd></div>
                         <div class="flex justify-between"><dt class="text-ink/50">{{ __('روز کارکرد') }}</dt><dd class="font-mono text-ink/70">{{ $period->worked_days_count ?? '—' }}</dd></div>
                     </dl>
-                    <p class="mt-2 text-[11px] text-ink/40">{{ __('کسر کار و ماموریت فقط از طریق فایل اکسل وارد می‌شوند (بند ۴.۲).') }}</p>
+                    <p class="mt-2 text-[11px] text-ink/40">{{ __('کسر کار و ماموریت فقط از طریق فایل اکسل وارد می‌شوند.') }}</p>
                 </div>
             @endif
         </div>
@@ -125,7 +125,7 @@
                                 <label class="{{ $label }}">{{ __('ساعت اضافه‌کار عادی') }}</label>
                                 <input class="{{ $input }} font-mono" name="normal_hours" type="number" step="0.01" min="0" required value="{{ $period?->normal_hours ?? '' }}">
                                 <span class="mt-1 block text-xs text-ink/40">
-                                    {{ __('ثبت بیش از سقف فردی مجاز است؛ محدودیت فقط روی مجموع گروه اعمال می‌شود (بند ۴.۴).') }}
+                                    {{ __('ثبت بیش از سقف فردی مجاز است؛ محدودیت فقط روی مجموع گروه اعمال می‌شود.') }}
                                 </span>
                             </div>
 
@@ -135,7 +135,7 @@
                         @if ($period && $period->status->editableByManager())
                             <form class="js-ajax-form mt-4 border-t border-line pt-4" method="POST" action="{{ route('admin.overtime.periods.submit', $period) }}" data-callback="reloadPeriod">
                                 @csrf
-                                <p class="mb-3 text-xs text-ink/50">{{ __('پس از ارسال برای معاونت، امکان ویرایش برای شما قفل می‌شود (بند ۴.۵).') }}</p>
+                                <p class="mb-3 text-xs text-ink/50">{{ __('پس از ارسال برای معاونت، امکان ویرایش برای شما قفل می‌شود.') }}</p>
                                 <button type="submit" class="rounded-lg border border-pine bg-pine-100 px-4 py-2.5 text-sm font-medium text-pine hover:bg-pine/10">{{ __('ارسال برای تایید معاونت') }}</button>
                             </form>
                         @endif
@@ -149,7 +149,7 @@
                                 {{ __('پنجره‌ی ثبت اضافه‌کار برای این ماه باز نیست.') }}
                                 <span class="font-mono">({{ __('روز فعال‌سازی') }}: {{ $ceilingVersion->activation_day }})</span>
                             @else
-                                {{ __('این دوره در وضعیت «:status» است و دیگر توسط مدیر واحد قابل ویرایش نیست (بند ۴.۵).', ['status' => $period?->status->label()]) }}
+                                {{ __('این دوره در وضعیت «:status» است و دیگر توسط مدیر واحد قابل ویرایش نیست.', ['status' => $period?->status->label()]) }}
                             @endif
                         </div>
                     @endif
@@ -193,7 +193,7 @@
                         <div>
                             <label class="{{ $label }}">{{ __('اضافه‌کار مازاد (اختیاری)') }}</label>
                             <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="0.01" min="0" value="{{ $period->excess_hours }}">
-                            <span class="mt-1 block text-xs text-ink/40">{{ __('سقف مازاد بر اساس سمت سازمانی و در سطح کل معاونت کنترل می‌شود (بند ۴.۳ قانون دوم).') }}</span>
+                            <span class="mt-1 block text-xs text-ink/40">{{ __('سقف مازاد بر اساس سمت سازمانی و در سطح کل معاونت کنترل می‌شود.') }}</span>
                         </div>
 
                         <div>

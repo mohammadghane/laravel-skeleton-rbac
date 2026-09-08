@@ -17,11 +17,11 @@ class ContractTypeCeilingRequest extends FormRequest
         return [
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
-            // این ستون پس از بازنگری بند ۴.۲ دیگر توسط موتور سقف استفاده نمی‌شود («سقف در
+            // این ستون پس از بازنگری دیگر توسط موتور سقف استفاده نمی‌شود («سقف در
             // اختیار مدیر واحد» به سمت سازمانی منتقل شد)، ولی ستون NOT NULL است؛ پس
             // اختیاری می‌ماند و در کنترلر با صفر پر می‌شود.
             'ceiling_per_person' => ['nullable', 'numeric', 'min:0'],
-            // سقف کلی قرارداد (بند ۴.۲) - اختیاری؛ اگر تعریف نشود هیچ capping ای در خروجی
+            // سقف کلی قرارداد - اختیاری؛ اگر تعریف نشود هیچ capping ای در خروجی
             // مالی اعمال نمی‌شود.
             'overall_ceiling' => ['nullable', 'numeric', 'min:0'],
             'activation_day' => ['required', 'integer', 'min:1', 'max:31'],

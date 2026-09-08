@@ -49,7 +49,7 @@
                     <div>
                         <label class="{{ $label }}">{{ __('سقف عادی هر نفر — در اختیار مدیر واحد') }}</label>
                         <input class="{{ $input }} font-mono" name="manager_ceiling_per_person" type="number" step="0.01" min="0" placeholder="{{ __('مثال: ۹۰') }}">
-                        <span class="mt-1 block text-xs text-ink/40">{{ __('سقف کل گروه = تعداد پرسنل دارای این سمت × این عدد (تبصره‌ی اول بند ۴.۲).') }}</span>
+                        <span class="mt-1 block text-xs text-ink/40">{{ __('سقف کل گروه = تعداد پرسنل دارای این سمت × این عدد.') }}</span>
                     </div>
 
                     <div>

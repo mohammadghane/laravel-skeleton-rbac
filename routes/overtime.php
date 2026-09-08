@@ -112,7 +112,7 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         });
     });
 
-    // --- کسر کار / ماموریت (ایمپورت اکسل - بند ۴.۲) ---
+    // --- کسر کار / ماموریت (ایمپورت اکسل -) ---
     Route::middleware(['permission:menu/import', 'permission:overtime/hr-manage'])->group(function () {
         Route::get('import', [OvertimeImportController::class, 'form'])->name('import.form');
         Route::post('import/deduction', [OvertimeImportController::class, 'deduction'])->name('import.deduction');
@@ -154,7 +154,7 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         Route::post('periods/{period}/special-items/{specialItem}', [OvertimePeriodController::class, 'applySpecialItem'])->name('periods.special-items.apply');
     });
 
-    // --- واگذاری ظرفیت مازاد بین معاونت‌ها (تبصره‌ی اول بازنگری بند ۴.۲) ---
+    // --- واگذاری ظرفیت مازاد بین معاونت‌ها ---
     // معاون بدون نیاز به دسترسی منو هم باید بتواند از ظرفیت معاونت خودش واگذار کند؛
     // تفکیک HR/معاون داخل کنترلر انجام می‌شود.
     Route::middleware('menu-or-chart:menu/capacity-transfers,deputy')->group(function () {
@@ -163,7 +163,7 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         Route::delete('capacity-transfers/{transfer}', [DeputyCapacityTransferController::class, 'destroy'])->name('capacity-transfers.destroy');
     });
 
-    // --- گزارش‌گیری و داشبورد (بند ۴.۷) - محدوده‌ی داده per-scope داخل کنترلر ---
+    // --- گزارش‌گیری و داشبورد - محدوده‌ی داده per-scope داخل کنترلر ---
     Route::middleware('menu-or-chart:menu/dashboard')->group(function () {
         Route::get('dashboard', [OvertimeReportController::class, 'dashboard'])->name('dashboard');
         Route::get('reports/personnel-monthly', [OvertimeReportController::class, 'personnelPage'])->name('reports.personnel-monthly');

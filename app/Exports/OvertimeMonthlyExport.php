@@ -15,7 +15,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * خروجی اکسل ماهانه‌ی اضافه‌کار برای سیستم مالی (راهکاران/همکاران سیستم) - بند ۴.۷ سند.
+ * خروجی اکسل ماهانه‌ی اضافه‌کار برای سیستم مالی (راهکاران/همکاران سیستم) - سند.
  * این یک نمونه‌ی اولیه است؛ ستون‌ها و نام‌گذاری دقیق باید بعداً با فرمت واقعی سیستم مالی
  * تطبیق داده شود (طبق تصمیم پروژه: فعلاً یک ساختار پیش‌فرض).
  *
@@ -61,7 +61,7 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
         $specialItemHeadings = $this->specialItems->pluck('title')->map(fn ($t) => $t . ' (ساعت)')->all();
 
         // «جمع خام» و «سقف کلی» و «مازاد بر سقف» فقط جهت شفافیت و ردیابی می‌آیند؛ ستونی که
-        // سیستم مالی باید مبنای فیش حقوقی قرار دهد «ساعت قابل پرداخت» است (بند ۴.۲).
+        // سیستم مالی باید مبنای فیش حقوقی قرار دهد «ساعت قابل پرداخت» است.
         return array_merge($fixed, $specialItemHeadings, [
             'جمع کل ساعت اضافه‌کار (خام)',
             'سقف کلی قرارداد',

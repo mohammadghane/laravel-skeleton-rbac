@@ -84,7 +84,7 @@ class PersonnelSyncTest extends TestCase
     public function test_it_builds_units_from_the_manager_chain(): void
     {
         // مهم‌ترین قابلیت ساختار جدید: بدون این، پرسنل بدون مدیر می‌مانند و هیچ‌کس
-        // نمی‌تواند برایشان اضافه‌کار ثبت کند (بند ۴.۴).
+        // نمی‌تواند برایشان اضافه‌کار ثبت کند.
         $this->service()->sync($this->managerAndSubordinate());
 
         $manager = User::where('personnel_code', '52155')->firstOrFail();
@@ -130,7 +130,7 @@ class PersonnelSyncTest extends TestCase
 
     public function test_one_position_is_shared_by_everyone_with_the_same_title(): void
     {
-        // سمت واحد گروه‌بندی سقف است (بند ۴.۳)، پس همه‌ی «کارشناس»ها یک رکورد دارند.
+        // سمت واحد گروه‌بندی سقف است، پس همه‌ی «کارشناس»ها یک رکورد دارند.
         $this->service()->sync([
             $this->record(['PersonnelCode' => 1]),
             $this->record(['PersonnelCode' => 2]),

@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
 /**
- * هشدار نزدیک‌شدن/عبور از سقف اضافه‌کار به مدیر منابع انسانی و مدیر سازمان (بند ۴.۷ سند:
+ * هشدار نزدیک‌شدن/عبور از سقف اضافه‌کار به مدیر منابع انسانی و مدیر سازمان ( سند:
  * «هشدار به مدیر سرمایه انسانی و مدیر سازمان در صورت نزدیک شدن یا عبور از سقف گروهی»).
  * $warnings ساختار خروجی OvertimeReportService::ceilingWarnings() است.
  */

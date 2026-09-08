@@ -51,7 +51,7 @@ class UserRequest extends FormRequest
             'roles' => ['nullable', 'array'],
             'roles.*' => ['integer', 'exists:roles,id'],
 
-            // فیلدهای چارت سازمانی - لازمِ ماژول اضافه‌کار (بند ۴.۱ شرح خدمات).
+            // فیلدهای چارت سازمانی - لازمِ ماژول اضافه‌کار.
             // پرسنل یا زیرمجموعه‌ی یک واحد است یا مستقیماً زیرمجموعه‌ی یک معاونت.
             'unit_id' => ['nullable', 'integer', 'exists:units,id'],
             'deputy_id' => ['nullable', 'integer', 'exists:deputies,id'],

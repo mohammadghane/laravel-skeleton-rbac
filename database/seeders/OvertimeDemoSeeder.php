@@ -37,7 +37,7 @@ class OvertimeDemoSeeder extends Seeder
         $formal = ContractType::firstOrCreate(['title' => 'رسمی']);
         $corporate = ContractType::firstOrCreate(['title' => 'شرکتی (پیمانکاری)']);
 
-        // سقف‌های ماه جاری - مطابق مثال‌های عددی خودِ شرح خدمات (بند ۴.۲).
+        // سقف‌های ماه جاری - مطابق مثال‌های عددی خودِ شرح خدمات.
         $formal->ceilingVersions()->updateOrCreate(
             ['jalali_year' => $year, 'jalali_month' => $month],
             ['ceiling_per_person' => 140, 'overall_ceiling' => 175, 'activation_day' => 1]
@@ -52,7 +52,7 @@ class OvertimeDemoSeeder extends Seeder
         $groupHead = Position::firstOrCreate(['title' => 'رئیس گروه']);
         $deputyPosition = Position::firstOrCreate(['title' => 'معاون']);
 
-        // دو سقف مجزا روی هر سمت (بازنگری بند ۴.۲):
+        // دو سقف مجزا روی هر سمت:
         //   manager_ceiling_per_person => سقف «عادی» در اختیار مدیر واحد
         //       مثال سند: کارمند و کارشناس ۹۰، رئیس گروه ۱۱۰، مدیر واحد ۱۲۰، معاونت‌ها ۱۷۵
         //   ceiling_per_person         => سقف «مازاد» در اختیار معاونت

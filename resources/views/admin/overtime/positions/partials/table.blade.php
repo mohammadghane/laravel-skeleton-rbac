@@ -31,7 +31,7 @@
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/60">{{ $position->personnel_count }}</td>
 
                     <td class="px-5 py-3.5">
-                        {{-- سقف «عادی» در اختیار مدیر واحد (بازنگری بند ۴.۲) --}}
+                        {{-- سقف «عادی» در اختیار مدیر واحد --}}
                         @if ($ceiling?->manager_ceiling_per_person !== null)
                             <span class="font-mono text-xs text-ink/70">{{ $ceiling->manager_ceiling_per_person }}</span>
                         @else
@@ -40,7 +40,7 @@
                     </td>
 
                     <td class="px-5 py-3.5">
-                        {{-- سقف «مازاد» در اختیار معاونت (بند ۴.۳ قانون دوم) --}}
+                        {{-- سقف «مازاد» در اختیار معاونت --}}
                         @if ($ceiling)
                             <span class="font-mono text-xs text-ink/70">{{ $ceiling->ceiling_per_person }}</span>
                         @else
@@ -49,7 +49,7 @@
                     </td>
 
                     <td class="px-5 py-3.5">
-                        {{-- سقف کل گروه = تعداد پرسنل × سقف عادی هر نفر (تبصره‌ی اول) --}}
+                        {{-- سقف کل گروه = تعداد پرسنل × سقف عادی هر نفر --}}
                         @if ($ceiling?->manager_ceiling_per_person !== null)
                             <span class="font-mono text-xs text-ink/70">{{ bcmul((string) $position->personnel_count, (string) $ceiling->manager_ceiling_per_person, 2) }}</span>
                         @else

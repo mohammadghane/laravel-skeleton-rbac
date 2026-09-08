@@ -12,7 +12,7 @@
 
     @include('admin.overtime.partials.page-header', [
         'title' => __('سمت‌های سازمانی'),
-        'subtitle' => __('سقف اضافه‌کار مازاد (در اختیار معاونت) بر اساس سمت سازمانی محاسبه می‌شود — بند ۴.۳ قانون دوم.'),
+        'subtitle' => __('سقف اضافه‌کار مازاد (در اختیار معاونت) بر اساس سمت سازمانی محاسبه می‌شود.'),
         'action' => new \Illuminate\Support\HtmlString(
             '<a href="' . route('admin.overtime.positions.create') . '" class="open-modal inline-flex items-center gap-2 rounded-lg bg-pine px-4 py-2.5 text-sm font-medium text-white transition hover:bg-pine-600">+ ' . __('سمت جدید') . '</a>'
         ),

@@ -14,13 +14,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * تست موتور کنترل سقف (بند ۴.۳ و ۴.۴ و بازنگری بند ۴.۲).
+ * تست موتور کنترل سقف.
  *
  * دو قاعده‌ی محوری:
  *   ۱) سقف در سطح «گروه» اعمال می‌شود نه «فرد» - یک پرسنل می‌تواند بیشتر از سهم میانگین
- *      خود بگیرد، به شرطی که مجموع گروه از سقف عبور نکند (بند ۴.۴).
- *   ۲) مبنای گروه‌بندی سقف عادی **سمت سازمانی** است، نه نوع قرارداد (بازنگری بند ۴.۲،
- *      تبصره‌ی اول: «تعداد پرسنل × عدد مشخص شده بر اساس سمت»).
+ *      خود بگیرد، به شرطی که مجموع گروه از سقف عبور نکند.
+ *   ۲) مبنای گروه‌بندی سقف عادی **سمت سازمانی** است، نه نوع قرارداد:
+ *      «تعداد پرسنل × عدد مشخص شده بر اساس سمت».
  */
 class OvertimeCeilingServiceTest extends TestCase
 {
@@ -88,7 +88,7 @@ class OvertimeCeilingServiceTest extends TestCase
 
     public function test_group_ceiling_is_headcount_times_position_ceiling(): void
     {
-        // بند ۴.۳ قانون اول + تبصره‌ی اول بازنگری بند ۴.۲: سقف گروه = تعداد پرسنل × سقف سمت.
+        // سقف گروه = تعداد پرسنل × سقف سمت.
         // با ۳ کارشناس و سقف ۹۰، سقف کل گروه ۲۷۰ ساعت است.
         [, $unit] = $this->makeOrg();
         $expert = $this->makePosition('کارشناس', managerCeiling: 90);
@@ -126,7 +126,7 @@ class OvertimeCeilingServiceTest extends TestCase
 
     public function test_individual_may_exceed_their_own_average_share(): void
     {
-        // بند ۴.۴: «ساعت اضافه‌کار یک پرسنل می‌تواند به صورت فردی از سقف تعریف‌شده برای او
+        // «ساعت اضافه‌کار یک پرسنل می‌تواند به صورت فردی از سقف تعریف‌شده برای او
         // تجاوز کند (عدم اعمال محدودیت سخت در سطح فرد)».
         [, $unit] = $this->makeOrg();
         $expert = $this->makePosition('کارشناس', managerCeiling: 90);
@@ -142,7 +142,7 @@ class OvertimeCeilingServiceTest extends TestCase
 
     public function test_group_total_over_ceiling_is_rejected(): void
     {
-        // بند ۴.۴: مجموع گروه نباید از سقف عبور کند.
+        // مجموع گروه نباید از سقف عبور کند.
         [, $unit] = $this->makeOrg();
         $expert = $this->makePosition('کارشناس', managerCeiling: 90);
 
@@ -240,7 +240,7 @@ class OvertimeCeilingServiceTest extends TestCase
 
     public function test_excess_ceiling_is_based_on_position_headcount(): void
     {
-        // بند ۴.۳ قانون دوم: سقف مازاد = تعداد پرسنل دارای آن سمت × سقف مازاد هر نفر.
+        // قانون دوم: سقف مازاد = تعداد پرسنل دارای آن سمت × سقف مازاد هر نفر.
         $deputy = Deputy::create(['title' => 'معاونت منابع انسانی', 'is_active' => true]);
         $unit = Unit::create(['deputy_id' => $deputy->id, 'title' => 'واحد جذب', 'is_active' => true]);
 

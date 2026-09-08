@@ -197,7 +197,7 @@ class CeilingBulkEditTest extends TestCase
 
     public function test_activation_day_only_edit_works_for_a_type_without_prior_ceiling(): void
     {
-        // پس از بازنگری بند ۴.۲، «سقف در اختیار مدیر واحد» به سمت سازمانی منتقل شد و روی
+        // پس از بازنگری، «سقف در اختیار مدیر واحد» به سمت سازمانی منتقل شد و روی
         // نوع قرارداد فقط «سقف کلی» و «روز فعال‌سازی» معنا دارند. بنابراین ثبت صرفِ روز
         // فعال‌سازی برای نوع قراردادی که هیچ نسخه‌ای ندارد باید کار کند - نه اینکه رد شود.
         $never = $this->contractType('متصدی ایستگاه');

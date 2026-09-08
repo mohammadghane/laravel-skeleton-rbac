@@ -47,8 +47,8 @@
                         </div>
                     </div>
 
-                    {{-- «سقف در اختیار مدیر واحد» از نوع قرارداد به سمت سازمانی منتقل شده
-                         (بازنگری بند ۴.۲)؛ برای تعریف آن به صفحه‌ی سمت‌های سازمانی بروید. --}}
+                    {{-- «سقف در اختیار مدیر واحد» از نوع قرارداد به سمت سازمانی منتقل شده؛
+                         برای تعریف آن به صفحه‌ی سمت‌های سازمانی بروید. --}}
                     <div class="rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink/50">
                         {{ __('سقف اضافه‌کار در اختیار مدیر واحد بر اساس «سمت سازمانی» تعریف می‌شود، نه نوع قرارداد.') }}
                         <a href="{{ route('admin.overtime.positions.index') }}" class="text-pine underline">{{ __('رفتن به سمت‌های سازمانی') }}</a>
@@ -58,14 +58,14 @@
                         <label class="{{ $label }}">{{ __('سقف کلی قرارداد') }}</label>
                         <input class="{{ $input }} font-mono" name="overall_ceiling" type="number" step="0.01" min="0" placeholder="{{ __('مثال: ۱۷۵ — اختیاری') }}">
                         <span class="mt-1 block text-xs text-ink/40">
-                            {{ __('مجموع عادی + مازاد + آیتم‌های ویژه‌ی هر فرد، بیش از این مقدار به واحد مالی ارسال نمی‌شود (بند ۴.۲). خالی بگذارید تا سقفی اعمال نشود.') }}
+                            {{ __('مجموع عادی + مازاد + آیتم‌های ویژه‌ی هر فرد، بیش از این مقدار به واحد مالی ارسال نمی‌شود. خالی بگذارید تا سقفی اعمال نشود.') }}
                         </span>
                     </div>
 
                     <div>
                         <label class="{{ $label }}">{{ __('روز فعال‌سازی ثبت') }}</label>
                         <input class="{{ $input }} font-mono" name="activation_day" type="number" min="1" max="31" required placeholder="{{ __('مثال: ۲۰') }}">
-                        <span class="mt-1 block text-xs text-ink/40">{{ __('از این روز تا پایان همان ماه، ثبت اضافه‌کار باز است (بند ۴.۶).') }}</span>
+                        <span class="mt-1 block text-xs text-ink/40">{{ __('از این روز تا پایان همان ماه، ثبت اضافه‌کار باز است.') }}</span>
                     </div>
 
                     <button type="submit" class="w-full rounded-lg bg-pine px-4 py-2.5 text-sm font-medium text-white hover:bg-pine-600">{{ __('ذخیره سقف') }}</button>

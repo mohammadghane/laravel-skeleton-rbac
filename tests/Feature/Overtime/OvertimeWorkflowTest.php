@@ -12,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * تست گردش کار تایید اضافه‌کار (بند ۴.۵) و ثبت تاریخچه‌ی وضعیت (الزام ردیابی بند ۵).
+ * تست گردش کار تایید اضافه‌کار و ثبت تاریخچه‌ی وضعیت (الزام ردیابی بند ۵).
  *
  * انگیزه‌ی اصلی: جدول تاریخچه در مهاجرت `overtime_status_history` (مفرد) ساخته شده ولی
  * Eloquent به‌طور پیش‌فرض آن را `overtime_status_histories` جمع می‌بندد. این ناهماهنگی باعث
@@ -75,7 +75,7 @@ class OvertimeWorkflowTest extends TestCase
 
     public function test_full_approval_chain_reaches_finalized(): void
     {
-        // بند ۴.۵: مدیر واحد -> معاونت -> مدیرعامل -> نهایی‌شده
+        // مدیر واحد -> معاونت -> مدیرعامل -> نهایی‌شده
         $period = $this->makePeriod();
         $actor = User::factory()->create();
 
@@ -97,7 +97,7 @@ class OvertimeWorkflowTest extends TestCase
 
     public function test_deputy_rejection_returns_control_to_manager(): void
     {
-        // بند ۴.۵: رد معاونت => گزارش برای اصلاح نزد مدیر واحد برمی‌گردد.
+        // رد معاونت => گزارش برای اصلاح نزد مدیر واحد برمی‌گردد.
         $period = $this->makePeriod();
         $actor = User::factory()->create();
 
@@ -109,7 +109,7 @@ class OvertimeWorkflowTest extends TestCase
 
     public function test_ceo_rejection_returns_control_to_deputy_not_manager(): void
     {
-        // بند ۴.۵: رد مدیرعامل مستقیم نزد معاونت برمی‌گردد، نه مدیر واحد.
+        // رد مدیرعامل مستقیم نزد معاونت برمی‌گردد، نه مدیر واحد.
         $period = $this->makePeriod();
         $actor = User::factory()->create();
 

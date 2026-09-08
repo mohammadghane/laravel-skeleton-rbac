@@ -12,7 +12,7 @@ class PositionCeilingVersion extends Model
     use Auditable;
 
     /**
-     * دو سقف مجزا روی همین رکورد (بازنگری بند ۴.۲):
+     * دو سقف مجزا روی همین رکورد:
      *   - ceiling_per_person         => سقف «مازاد»، در اختیار معاونت
      *   - manager_ceiling_per_person => سقف «عادی»، در اختیار مدیر واحد
      */
