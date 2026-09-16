@@ -19,7 +19,7 @@
     <div class="mb-4">
         @include('admin.overtime.partials.search-box', [
             'route' => 'admin.users.index',
-            'placeholder' => __('نام، کد پرسنلی، موبایل یا کد ملی…'),
+            'placeholder' => __('نام، کد پرسنلی، موبایل، سمت یا معاونت…'),
             // تا جست‌وجو انتخابِ «تعداد در هر صفحه» را صفر نکند.
             'extra' => ['per_page' => request('per_page')],
         ])

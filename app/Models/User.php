@@ -104,6 +104,18 @@ class User extends Authenticatable
         return $this->unit?->deputy_id;
     }
 
+    /**
+     * خودِ معاونتِ مؤثر (نه فقط شناسه‌اش) - برای نمایش در فهرست‌ها.
+     *
+     * همان قاعده‌ی effectiveDeputyId: معاونتِ مستقیم مقدم است، وگرنه از واحد خوانده
+     * می‌شود. در عمل تقریباً همه‌ی پرسنل از مسیر دوم می‌آیند، چون همگام‌سازی فقط
+     * زنجیره‌ی مدیر را می‌سازد و deputy_id را مستقیم پر نمی‌کند.
+     */
+    public function effectiveDeputy(): ?\App\Models\Deputy
+    {
+        return $this->deputy ?? $this->unit?->deputy;
+    }
+
     /** آیا این کاربر مدیر یک واحد است؟ (نقش مدیر واحد از چارت استخراج می‌شود، نه از جدول roles) */
     public function isUnitManager(): bool
     {

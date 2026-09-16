@@ -25,7 +25,10 @@ class UserController extends Controller
         $users = User::query()
             // position برای ستون «سمت سازمانی» در جدول - بدون eager load، به‌ازای هر
             // ردیف یک کوئری اضافه می‌خورد (N+1).
-            ->with('position')
+            //
+            // deputy و unit.deputy هر دو لازم‌اند: معاونتِ اکثر پرسنل از طریق واحدشان
+            // مشخص می‌شود نه ستون deputy_id (نگاه کنید به User::effectiveDeputy()).
+            ->with(['position', 'deputy', 'unit.deputy'])
             // حساب سرویسیِ `admin` پرسنل سازمان نیست و نباید در این فهرست دیده شود
             // (و در نتیجه در حذف گروهی هم انتخاب نمی‌شود).
             //
@@ -51,7 +54,12 @@ class UserController extends Controller
                         ->orWhereRaw("CONCAT(name, ' ', COALESCE(family, '')) LIKE ?", [$term])
                         // سمت سازمانی هم ستونی از همین جدول است، پس کاربر انتظار دارد
                         // جست‌وجوی «کارشناس» پرسنل آن سمت را برگرداند.
-                        ->orWhereHas('position', fn ($p) => $p->where('title', 'like', $term));
+                        ->orWhereHas('position', fn ($p) => $p->where('title', 'like', $term))
+                        // معاونت هم ستون نمایشی است؛ هر دو مسیر (مستقیم و از طریق واحد)
+                        // باید جست‌وجو شوند، وگرنه جست‌وجو برای تقریباً همه‌ی پرسنل
+                        // نتیجه‌ای برنمی‌گرداند.
+                        ->orWhereHas('deputy', fn ($d) => $d->where('title', 'like', $term))
+                        ->orWhereHas('unit.deputy', fn ($d) => $d->where('title', 'like', $term));
                 });
             })
             ->orderByDesc('id')
