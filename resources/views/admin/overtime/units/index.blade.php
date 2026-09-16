@@ -15,12 +15,15 @@
     @php $control = 'rounded-lg border border-line bg-white px-3 py-2 text-sm focus:border-pine focus:outline-none focus:ring-2 focus:ring-pine/20'; @endphp
     <form method="GET" class="mb-4 flex flex-wrap items-center gap-2">
         <label class="text-sm text-ink/50">{{ __('معاونت') }}</label>
-        <select name="deputy_id" class="{{ $control }}">
-            <option value="">{{ __('همه') }}</option>
-            @foreach ($deputies as $deputy)
-                <option value="{{ $deputy->id }}" @selected((int) request('deputy_id') === $deputy->id)>{{ $deputy->title }}</option>
-            @endforeach
-        </select>
+        <div class="w-52">
+            <x-searchable-select
+                name="deputy_id"
+                :options="$deputies->map(fn ($d) => ['value' => $d->id, 'label' => $d->title])"
+                :selected="request('deputy_id', '')"
+                :placeholder="__('همه')"
+                :input-class="$control . ' w-full'"
+            />
+        </div>
 
         <div class="relative">
             <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('عنوان واحد…') }}" class="{{ $control }} w-52 ps-8">

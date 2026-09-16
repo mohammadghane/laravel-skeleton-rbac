@@ -44,6 +44,83 @@
         }
     </script>
 
+    {{-- انتخابگر تک‌مقداری با جست‌وجو - برای <select>های داینامیک (واحد، سمت،
+         معاونت، مدیر و …). نگاه کنید به resources/views/components/searchable-select.blade.php --}}
+    <script>
+        function searchableSelect(config) {
+            return {
+                options: config.options,
+                selected: config.selected,
+                placeholder: config.placeholder,
+                query: '',
+                open: false,
+                highlight: 0,
+
+                /**
+                 * یکسان‌سازی متن برای جست‌وجو: حروف عربی ي/ك و ارقام فارسی/عربی به
+                 * معادل فارسی/لاتین تبدیل می‌شوند - همان قاعده‌ای که سمت سرور در
+                 * App\Support\PersianText اعمال می‌شود. بدون این، تایپ «كارشناس» با
+                 * کاف عربی هیچ نتیجه‌ای نمی‌داد.
+                 */
+                normalize(text) {
+                    return String(text ?? '')
+                        .replace(/ي/g, 'ی')
+                        .replace(/ك/g, 'ک')
+                        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+                        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+                        .replace(/\u200c/g, ' ')
+                        .toLowerCase()
+                        .trim();
+                },
+
+                currentLabel() {
+                    const match = this.options.find(o => o.value === this.selected);
+                    if (!match) return this.placeholder;
+                    return match.hint ? `${match.label} ${match.hint}` : match.label;
+                },
+
+                filtered() {
+                    const q = this.normalize(this.query);
+                    if (!q) return this.options;
+
+                    return this.options.filter(o =>
+                        this.normalize(o.label + ' ' + o.hint).includes(q));
+                },
+
+                toggle() {
+                    this.open ? this.close() : this.openList();
+                },
+
+                openList() {
+                    this.open = true;
+                    this.highlight = 0;
+                    this.$nextTick(() => this.$refs.search?.focus());
+                },
+
+                close() {
+                    this.open = false;
+                    this.query = '';
+                },
+
+                pick(value) {
+                    this.selected = value;
+                    this.close();
+                },
+
+                move(step) {
+                    const max = this.filtered().length - 1;
+                    if (max < 0) return;
+                    this.highlight = Math.min(Math.max(this.highlight + step, 0), max);
+                },
+
+                pickHighlighted() {
+                    const opt = this.filtered()[this.highlight];
+                    if (opt) this.pick(opt.value);
+                },
+            };
+        }
+    </script>
+
     {{-- حذف گروهی: مشترک بین همه‌ی فهرست‌ها.
          انتخاب ردیف‌ها با `.row-select` و چک‌باکس سربرگ با `.select-all` انجام می‌شود.
          سرور همان قواعد حفاظتیِ حذف تکی را اعمال می‌کند و موارد رد شده را برمی‌گرداند. --}}

@@ -11,14 +11,13 @@
     <form method="GET" class="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:grid-cols-2 lg:grid-cols-5">
         <div>
             <label class="mb-1 block text-xs font-medium text-ink/60">{{ __('نوع مدل') }}</label>
-            <select name="filters[auditable_type]" class="w-full rounded-lg border border-line px-3 py-2 text-sm">
-                <option value="">{{ __('همه') }}</option>
-                @foreach ($auditableTypes as $type)
-                    <option value="{{ $type }}" @selected(request('filters.auditable_type') === $type)>
-                        {{ __($modelLabels[$type] ?? class_basename($type)) }}
-                    </option>
-                @endforeach
-            </select>
+            <x-searchable-select
+                name="filters[auditable_type]"
+                :options="collect($auditableTypes)->map(fn ($t) => ['value' => $t, 'label' => __($modelLabels[$t] ?? class_basename($t))])"
+                :selected="request('filters.auditable_type', '')"
+                :placeholder="__('همه')"
+                input-class="w-full rounded-lg border border-line px-3 py-2 text-sm"
+            />
         </div>
 
         <div>

@@ -65,46 +65,48 @@
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label class="{{ $label }}">{{ __('واحد سازمانی') }}</label>
-                        <select name="unit_id" class="{{ $input }}">
-                            <option value="">{{ __('— بدون واحد —') }}</option>
-                            @foreach ($units as $unit)
-                                <option value="{{ $unit->id }}" @selected((int) old('unit_id', $user->unit_id ?? 0) === $unit->id)>
-                                    {{ $unit->title }}@if ($unit->deputy) ({{ $unit->deputy->title }}) @endif
-                                </option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="unit_id"
+                            :options="$units->map(fn ($u) => ['value' => $u->id, 'label' => $u->title, 'hint' => $u->deputy ? '(' . $u->deputy->title . ')' : ''])"
+                            :selected="old('unit_id', $user->unit_id ?? '')"
+                            :placeholder="__('— بدون واحد —')"
+                            :input-class="$input"
+                        />
                     </div>
 
                     <div>
                         <label class="{{ $label }}">{{ __('معاونت مستقیم') }}</label>
-                        <select name="deputy_id" class="{{ $input }}">
-                            <option value="">{{ __('— ندارد —') }}</option>
-                            @foreach ($deputies as $deputy)
-                                <option value="{{ $deputy->id }}" @selected((int) old('deputy_id', $user->deputy_id ?? 0) === $deputy->id)>{{ $deputy->title }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="deputy_id"
+                            :options="$deputies->map(fn ($d) => ['value' => $d->id, 'label' => $d->title])"
+                            :selected="old('deputy_id', $user->deputy_id ?? '')"
+                            :placeholder="__('— ندارد —')"
+                            :input-class="$input"
+                        />
                         <span class="mt-1 block text-xs text-ink/40">{{ __('فقط برای پرسنلی که زیرمجموعه‌ی هیچ واحدی نیستند.') }}</span>
                     </div>
 
                     <div>
                         <label class="{{ $label }}">{{ __('سمت سازمانی') }}</label>
-                        <select name="position_id" class="{{ $input }}">
-                            <option value="">{{ __('— انتخاب نشده —') }}</option>
-                            @foreach ($positions as $position)
-                                <option value="{{ $position->id }}" @selected((int) old('position_id', $user->position_id ?? 0) === $position->id)>{{ $position->title }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="position_id"
+                            :options="$positions->map(fn ($p) => ['value' => $p->id, 'label' => $p->title])"
+                            :selected="old('position_id', $user->position_id ?? '')"
+                            :placeholder="__('— انتخاب نشده —')"
+                            :input-class="$input"
+                        />
                         <span class="mt-1 block text-xs text-ink/40">{{ __('مبنای محاسبه‌ی سقف اضافه‌کار مازاد.') }}</span>
                     </div>
 
                     <div>
                         <label class="{{ $label }}">{{ __('نوع قرارداد') }}</label>
-                        <select name="contract_type_id" class="{{ $input }}">
-                            <option value="">{{ __('— انتخاب نشده —') }}</option>
-                            @foreach ($contractTypes as $contractType)
-                                <option value="{{ $contractType->id }}" @selected((int) old('contract_type_id', $user->contract_type_id ?? 0) === $contractType->id)>{{ $contractType->title }}</option>
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="contract_type_id"
+                            :options="$contractTypes->map(fn ($c) => ['value' => $c->id, 'label' => $c->title])"
+                            :selected="old('contract_type_id', $user->contract_type_id ?? '')"
+                            :placeholder="__('— انتخاب نشده —')"
+                            :input-class="$input"
+                        />
                         <span class="mt-1 block text-xs text-ink/40">{{ __('بدون نوع قرارداد، ثبت اضافه‌کار عادی ممکن نیست.') }}</span>
                     </div>
                 </div>

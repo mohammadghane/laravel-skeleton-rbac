@@ -26,24 +26,25 @@
 
     <div>
         <label class="{{ $label }}">{{ __('معاونت') }}</label>
-        <select name="deputy_id" required class="{{ $input }}">
-            <option value="">{{ __('— انتخاب کنید —') }}</option>
-            @foreach ($deputies as $deputy)
-                <option value="{{ $deputy->id }}" @selected((int) old('deputy_id', $unit->deputy_id ?? 0) === $deputy->id)>{{ $deputy->title }}</option>
-            @endforeach
-        </select>
+        <x-searchable-select
+            name="deputy_id"
+            :options="$deputies->map(fn ($d) => ['value' => $d->id, 'label' => $d->title])"
+            :selected="old('deputy_id', $unit->deputy_id ?? '')"
+            :placeholder="__('— انتخاب کنید —')"
+            :input-class="$input"
+            required
+        />
     </div>
 
     <div>
         <label class="{{ $label }}">{{ __('مدیر واحد (مسئول ثبت اضافه‌کار)') }}</label>
-        <select name="manager_user_id" class="{{ $input }}">
-            <option value="">{{ __('— تعیین نشده —') }}</option>
-            @foreach ($candidates as $candidate)
-                <option value="{{ $candidate->id }}" @selected((int) old('manager_user_id', $unit->manager_user_id ?? 0) === $candidate->id)>
-                    {{ trim($candidate->name . ' ' . $candidate->family) }} ({{ $candidate->username }})
-                </option>
-            @endforeach
-        </select>
+        <x-searchable-select
+            name="manager_user_id"
+            :options="$candidates->map(fn ($c) => ['value' => $c->id, 'label' => trim($c->name . ' ' . $c->family), 'hint' => '(' . $c->username . ')'])"
+            :selected="old('manager_user_id', $unit->manager_user_id ?? '')"
+            :placeholder="__('— تعیین نشده —')"
+            :input-class="$input"
+        />
         <span class="mt-1 block text-xs text-ink/40">{{ __('هر کاربر می‌تواند مدیر تنها یک واحد باشد.') }}</span>
     </div>
 

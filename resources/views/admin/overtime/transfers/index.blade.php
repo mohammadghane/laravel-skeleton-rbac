@@ -34,14 +34,13 @@
                     <div>
                         <label class="{{ $label }}">{{ __('از معاونت') }}</label>
                         @if ($isHr)
-                            <select name="from_deputy_id" required class="{{ $input }}">
-                                <option value="">{{ __('— انتخاب کنید —') }}</option>
-                                @foreach ($deputies as $deputy)
-                                    <option value="{{ $deputy->id }}">
-                                        {{ $deputy->title }} ({{ __('باقی‌مانده') }}: {{ $capacity[$deputy->id]['remaining'] }})
-                                    </option>
-                                @endforeach
-                            </select>
+                            <x-searchable-select
+                                name="from_deputy_id"
+                                :options="$deputies->map(fn ($d) => ['value' => $d->id, 'label' => $d->title, 'hint' => '(' . __('باقی‌مانده') . ': ' . $capacity[$d->id]['remaining'] . ')'])"
+                                :placeholder="__('— انتخاب کنید —')"
+                                :input-class="$input"
+                                required
+                            />
                         @else
                             {{-- معاون فقط از معاونت خودش می‌تواند واگذار کند. --}}
                             <input type="hidden" name="from_deputy_id" value="{{ $ownDeputy->id }}">
@@ -56,14 +55,13 @@
 
                     <div>
                         <label class="{{ $label }}">{{ __('به معاونت') }}</label>
-                        <select name="to_deputy_id" required class="{{ $input }}">
-                            <option value="">{{ __('— انتخاب کنید —') }}</option>
-                            @foreach ($deputies as $deputy)
-                                @if ($isHr || $deputy->id !== $ownDeputy?->id)
-                                    <option value="{{ $deputy->id }}">{{ $deputy->title }}</option>
-                                @endif
-                            @endforeach
-                        </select>
+                        <x-searchable-select
+                            name="to_deputy_id"
+                            :options="$deputies->reject(fn ($d) => !$isHr && $d->id === $ownDeputy?->id)->map(fn ($d) => ['value' => $d->id, 'label' => $d->title])->values()"
+                            :placeholder="__('— انتخاب کنید —')"
+                            :input-class="$input"
+                            required
+                        />
                     </div>
 
                     <div>

@@ -33,14 +33,13 @@
 
     <div>
         <label class="{{ $label }}">{{ __('معاون (مسئول تایید اضافه‌کار)') }}</label>
-        <select name="head_user_id" class="{{ $input }}">
-            <option value="">{{ __('— تعیین نشده —') }}</option>
-            @foreach ($candidates as $candidate)
-                <option value="{{ $candidate->id }}" @selected((int) old('head_user_id', $deputy->head_user_id ?? 0) === $candidate->id)>
-                    {{ trim($candidate->name . ' ' . $candidate->family) }} ({{ $candidate->username }})
-                </option>
-            @endforeach
-        </select>
+        <x-searchable-select
+            name="head_user_id"
+            :options="$candidates->map(fn ($c) => ['value' => $c->id, 'label' => trim($c->name . ' ' . $c->family), 'hint' => '(' . $c->username . ')'])"
+            :selected="old('head_user_id', $deputy->head_user_id ?? '')"
+            :placeholder="__('— تعیین نشده —')"
+            :input-class="$input"
+        />
         <span class="mt-1 block text-xs text-ink/40">{{ __('تا زمانی که معاون تعیین نشود، مرحله‌ی تایید معاونت برای پرسنل این معاونت انجام نمی‌شود.') }}</span>
     </div>
 
