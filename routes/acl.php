@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,16 @@ Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(funct
     Route::get('/profile', [UserController::class, 'profile'])->name('profile');
     Route::post('/profile', [UserController::class, 'store'])->name('profile.store');
     Route::get('/users/check-unique', [UserController::class, 'checkUnique'])->name('users.check-unique');
+
+    Route::prefix('locations')->name('locations.')->middleware('permission:menu/locations')->group(function () {
+        Route::get('/', [LocationController::class, 'index'])->name('index');
+        Route::get('/create', [LocationController::class, 'edit'])->name('create');
+        Route::get('/{location}/edit', [LocationController::class, 'edit'])->name('edit');
+        Route::post('/', [LocationController::class, 'store'])->name('store');
+        Route::post('/bulk-destroy', [LocationController::class, 'bulkDestroy'])->name('bulk-destroy');
+        Route::put('/{location}', [LocationController::class, 'update'])->name('update');
+        Route::delete('/{location}', [LocationController::class, 'destroy'])->name('destroy');
+    });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
         ->name('audit-logs.index')

@@ -11,6 +11,7 @@
  * inline صفحه زودتر اجرا شده‌اند.
  */
 import Alpine from 'alpinejs';
+import './map';
 
 window.Alpine = Alpine;
 Alpine.start();

@@ -57,4 +57,20 @@ return [
         'skip_ssl_verify' => env('PERSONNEL_SKIP_SSL_VERIFY', false),
     ],
 
+
+    /*
+     * نقشه (OpenStreetMap).
+     *
+     * کتابخانه‌ی Leaflet و آیکون‌هایش محلی‌اند، ولی «کاشی‌های» نقشه داده‌ی زنده‌اند و
+     * از شبکه می‌آیند. اگر سازمان سرور کاشی داخلی دارد، فقط همین مقدار را عوض کنید؛
+     * بقیه‌ی نقشه آفلاین کار می‌کند.
+     */
+    'map' => [
+        'tile_url' => env('MAP_TILE_URL', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+        'attribution' => env('MAP_ATTRIBUTION', '&copy; OpenStreetMap'),
+        'default_lat' => env('MAP_DEFAULT_LAT', 32.4279),
+        'default_lng' => env('MAP_DEFAULT_LNG', 53.6880),
+        'default_zoom' => env('MAP_DEFAULT_ZOOM', 5),
+    ],
+
 ];

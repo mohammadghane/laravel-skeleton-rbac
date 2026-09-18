@@ -34,6 +34,7 @@ return [
                     'menu/capacity-transfers' => ['title' => 'واگذاری ظرفیت مازاد'],
                     'menu/overtime-entry' => ['title' => 'ثبت اضافه‌کار'],
                     'menu/roles' => ['title' => 'نقش سازمانی'],
+                    'menu/locations' => ['title' => 'موقعیت جغرافیایی'],
                     'menu/audit-logs' => ['title' => 'گزارش تغییرات'],
                 ],
             ],

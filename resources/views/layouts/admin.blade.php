@@ -44,6 +44,15 @@
         }
     </script>
 
+    {{-- تنظیمات نقشه: آدرس کاشی از config می‌آید تا سازمان بتواند سرور داخلی
+         جایگزین کند (نگاه کنید به config/services.php کلید map). --}}
+    <script>
+        window.mapConfig = {
+            tileUrl: @json(config('services.map.tile_url')),
+            attribution: @json(config('services.map.attribution')),
+        };
+    </script>
+
     {{-- انتخابگر تک‌مقداری با جست‌وجو - برای <select>های داینامیک (واحد، سمت،
          معاونت، مدیر و …). نگاه کنید به resources/views/components/searchable-select.blade.php --}}
     <script>
@@ -376,6 +385,12 @@
                         'route' => 'admin.roles.index',
                         'active' => 'admin.roles.*',
                         'show' => $can('menu/roles'),
+                    ],
+                    [
+                        'label' => __('موقعیت جغرافیایی'),
+                        'route' => 'admin.locations.index',
+                        'active' => 'admin.locations.*',
+                        'show' => $can('menu/locations'),
                     ],
                     [
                         'label' => __('گزارش تغییرات'),
