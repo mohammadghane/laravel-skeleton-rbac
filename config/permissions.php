@@ -35,6 +35,7 @@ return [
                     'menu/overtime-entry' => ['title' => 'ثبت اضافه‌کار'],
                     'menu/roles' => ['title' => 'نقش سازمانی'],
                     'menu/locations' => ['title' => 'موقعیت جغرافیایی'],
+                    'menu/location-comments' => ['title' => 'ثبت نظر'],
                     'menu/audit-logs' => ['title' => 'گزارش تغییرات'],
                 ],
             ],

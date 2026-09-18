@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\LocationCommentController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
@@ -74,6 +75,16 @@ Route::middleware(['web', 'auth'])->prefix('admin')->name('admin.')->group(funct
         Route::post('/bulk-destroy', [LocationController::class, 'bulkDestroy'])->name('bulk-destroy');
         Route::put('/{location}', [LocationController::class, 'update'])->name('update');
         Route::delete('/{location}', [LocationController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::prefix('location-comments')->name('location-comments.')->middleware('permission:menu/location-comments')->group(function () {
+        Route::get('/', [LocationCommentController::class, 'index'])->name('index');
+        Route::get('/create', [LocationCommentController::class, 'create'])->name('create');
+        // بررسی زنده‌ی نقطه با هر کلیک روی نقشه.
+        Route::post('/check', [LocationCommentController::class, 'check'])->name('check');
+        Route::post('/', [LocationCommentController::class, 'store'])->name('store');
+        Route::post('/bulk-destroy', [LocationCommentController::class, 'bulkDestroy'])->name('bulk-destroy');
+        Route::delete('/{locationComment}', [LocationCommentController::class, 'destroy'])->name('destroy');
     });
 
     Route::get('/audit-logs', [AuditLogController::class, 'index'])

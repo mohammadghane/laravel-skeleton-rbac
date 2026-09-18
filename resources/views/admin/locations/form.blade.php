@@ -68,6 +68,19 @@
     </div>
 
     <div>
+        <label class="{{ $label }}">{{ __('شعاع مجاز (متر)') }}</label>
+        <input
+            class="{{ $input }} font-mono"
+            type="number" min="1" max="100000" step="1"
+            name="allowed_radius" required
+            value="{{ old('allowed_radius', $location->allowed_radius ?? 100) }}"
+        >
+        <span class="mt-1 block text-xs text-ink/40">
+            {{ __('در منوی «ثبت نظر»، نقطه‌ای که کاربر انتخاب می‌کند تا این فاصله از این موقعیت مجاز شمرده می‌شود.') }}
+        </span>
+    </div>
+
+    <div>
         <label class="{{ $label }}">{{ __('توضیحات') }}</label>
         <textarea class="{{ $input }}" name="description" rows="2">{{ old('description', $location->description ?? '') }}</textarea>
     </div>

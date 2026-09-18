@@ -39,6 +39,7 @@ class LocationTest extends TestCase
                 'title' => 'ساختمان مرکزی',
                 'latitude' => 35.6997161,
                 'longitude' => 51.3376820,
+                'allowed_radius' => 150,
                 'description' => 'دفتر مرکزی سازمان',
                 'is_active' => true,
             ])
@@ -52,6 +53,7 @@ class LocationTest extends TestCase
         $this->assertSame('35.6997161', (string) $saved->latitude);
         $this->assertSame('51.3376820', (string) $saved->longitude);
         $this->assertSame($user->id, $saved->created_by);
+        $this->assertSame(150, $saved->allowed_radius);
     }
 
     public function test_saving_without_a_point_is_rejected(): void
@@ -75,6 +77,27 @@ class LocationTest extends TestCase
             ->assertJsonValidationErrors(['latitude', 'longitude']);
     }
 
+    public function test_the_allowed_radius_is_required_and_must_be_positive(): void
+    {
+        // شعاع صفر یعنی هیچ نقطه‌ای هرگز مجاز نیست - که موقعیت را بی‌استفاده
+        // می‌کند و احتمالاً اشتباه کاربر است، نه خواسته‌اش.
+        $user = $this->allowedUser();
+
+        $this->actingAs($user)
+            ->postJson(route('admin.locations.store'), [
+                'title' => 'بدون شعاع', 'latitude' => 35.7, 'longitude' => 51.4,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['allowed_radius']);
+
+        $this->actingAs($user)
+            ->postJson(route('admin.locations.store'), [
+                'title' => 'شعاع صفر', 'latitude' => 35.7, 'longitude' => 51.4, 'allowed_radius' => 0,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['allowed_radius']);
+    }
+
     public function test_a_location_can_be_moved_by_editing(): void
     {
         $user = $this->allowedUser();
@@ -87,6 +110,7 @@ class LocationTest extends TestCase
                 'title' => 'انبار مرکزی',
                 'latitude' => 36.2,
                 'longitude' => 52.2,
+                'allowed_radius' => 250,
                 'is_active' => false,
             ])
             ->assertOk();

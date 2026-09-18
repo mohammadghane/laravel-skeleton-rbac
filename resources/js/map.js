@@ -85,3 +85,116 @@ window.locationPicker = function (config) {
         },
     };
 };
+
+/**
+ * انتخابگر نقطه برای «ثبت نظر».
+ *
+ * با هر کلیک، نقطه به سرور فرستاده می‌شود و پاسخ («مجاز هستید» یا «مجاز نیستید»)
+ * نمایش داده می‌شود. بررسی عمداً سمت سرور است نه با محاسبه‌ی محلی: اگر شعاع‌ها را
+ * به مرورگر می‌فرستادیم، کاربر می‌توانست آن‌ها را عوض کند و پیام دلخواه بگیرد -
+ * و مهم‌تر، دو پیاده‌سازیِ موازیِ فاصله می‌داشتیم که می‌توانند از هم جدا بیفتند.
+ */
+window.commentPicker = function (config) {
+    return {
+        lat: null,
+        lng: null,
+        map: null,
+        marker: null,
+        busy: false,
+        checked: false,
+        allowed: false,
+        message: '',
+        detail: '',
+
+        init() {
+            this.map = L.map(this.$refs.map)
+                .setView([config.fallback.lat, config.fallback.lng], config.fallback.zoom);
+
+            L.tileLayer(window.mapConfig.tileUrl, {
+                maxZoom: 19,
+                attribution: window.mapConfig.attribution,
+            }).addTo(this.map);
+
+            this.drawAllowedZones();
+
+            this.map.on('click', (e) => this.select(e.latlng.lat, e.latlng.lng));
+
+            setTimeout(() => this.map.invalidateSize(), 200);
+        },
+
+        /**
+         * محدوده‌های مجاز به‌صورت دایره نمایش داده می‌شوند تا کاربر پیش از کلیک
+         * بداند کجا مجاز است - وگرنه باید کورکورانه کلیک کند تا پیام بگیرد.
+         *
+         * این فقط راهنمای بصری است؛ تصمیم واقعی همچنان با سرور است.
+         */
+        drawAllowedZones() {
+            const zones = window.allowedZones ?? [];
+            if (!zones.length) return;
+
+            const circles = zones.map(z =>
+                L.circle([z.lat, z.lng], {
+                    radius: z.radius,
+                    color: '#3E6259',
+                    fillColor: '#3E6259',
+                    fillOpacity: 0.12,
+                    weight: 1,
+                }).addTo(this.map).bindPopup(`${z.title} — ${z.radius} متر`));
+
+            if (circles.length === 1) {
+                this.map.setView([zones[0].lat, zones[0].lng], 15);
+            } else {
+                this.map.fitBounds(L.featureGroup(circles).getBounds().pad(0.3));
+            }
+        },
+
+        async select(lat, lng) {
+            this.lat = Number(lat.toFixed(7));
+            this.lng = Number(lng.toFixed(7));
+
+            if (this.marker) {
+                this.marker.setLatLng([this.lat, this.lng]);
+            } else {
+                this.marker = L.marker([this.lat, this.lng]).addTo(this.map);
+            }
+
+            this.busy = true;
+            this.checked = false;
+
+            try {
+                const res = await fetch(config.checkUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ latitude: this.lat, longitude: this.lng }),
+                });
+
+                const data = await res.json();
+
+                this.allowed = data.allowed === true;
+                this.message = data.message;
+                this.detail = this.buildDetail(data);
+                this.checked = true;
+            } catch {
+                this.allowed = false;
+                this.message = 'بررسی موقعیت انجام نشد.';
+                this.detail = 'ارتباط با سرور برقرار نشد.';
+                this.checked = true;
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        buildDetail(data) {
+            if (!data.location) return '';
+
+            return data.allowed
+                ? `داخل محدوده‌ی «${data.location}» — فاصله: ${data.distance} متر`
+                : `نزدیک‌ترین موقعیت: «${data.location}» — فاصله: ${data.distance} متر`;
+        },
+    };
+};

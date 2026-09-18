@@ -7,6 +7,7 @@
                 </th>
                 <th class="px-5 py-3 font-medium">{{ __('عنوان') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('مختصات') }}</th>
+                <th class="px-5 py-3 font-medium">{{ __('شعاع مجاز') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('توضیحات') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('ثبت‌کننده') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('وضعیت') }}</th>
@@ -23,6 +24,7 @@
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/60" dir="ltr">
                         {{ $location->latitude }}, {{ $location->longitude }}
                     </td>
+                    <td class="px-5 py-3.5 font-mono text-xs text-ink/60">{{ number_format($location->allowed_radius) }} {{ __('متر') }}</td>
                     <td class="px-5 py-3.5 text-xs text-ink/50">{{ \Illuminate\Support\Str::limit($location->description, 60) ?: '—' }}</td>
                     <td class="px-5 py-3.5 text-xs text-ink/50">
                         {{ $location->creator ? trim($location->creator->name . ' ' . $location->creator->family) : '—' }}
@@ -42,7 +44,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="px-5 py-10 text-center text-ink/40">{{ __('هنوز موقعیتی ثبت نشده است.') }}</td></tr>
+                <tr><td colspan="8" class="px-5 py-10 text-center text-ink/40">{{ __('هنوز موقعیتی ثبت نشده است.') }}</td></tr>
             @endforelse
         </tbody>
     </table>

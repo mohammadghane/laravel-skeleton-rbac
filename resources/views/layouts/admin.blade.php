@@ -393,6 +393,12 @@
                         'show' => $can('menu/locations'),
                     ],
                     [
+                        'label' => __('ثبت نظر'),
+                        'route' => 'admin.location-comments.index',
+                        'active' => 'admin.location-comments.*',
+                        'show' => $can('menu/location-comments'),
+                    ],
+                    [
                         'label' => __('گزارش تغییرات'),
                         'route' => 'admin.audit-logs.index',
                         'active' => 'admin.audit-logs.*',
