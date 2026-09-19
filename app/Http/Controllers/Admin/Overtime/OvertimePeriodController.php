@@ -103,23 +103,33 @@ class OvertimePeriodController extends Controller
     {
         $with = ['unit', 'deputy', 'position', 'contractType'];
 
-        if ($user->isUnitManager()) {
-            $unit = \App\Models\Unit::where('manager_user_id', $user->id)->firstOrFail();
+        // معاون و مدیر واحد: محدوده‌ی هر دو با هم.
+        //
+        // در داده‌ی واقعی این دو نقش لزوماً تودرتو نیستند - کسی می‌تواند معاونِ
+        // معاونت الف و هم‌زمان مدیرِ واحدی زیر معاونت ب باشد. با انتخاب فقط یکی
+        // از دو نقش، بخشی از پرسنلِ تحت مسئولیتش از فهرست حذف می‌شد.
+        $isDeputyHead = $user->isDeputyHead();
+        $isUnitManager = $user->isUnitManager();
+
+        if ($isDeputyHead || $isUnitManager) {
+            $ids = $this->registerablePersonnelIds($user);
+            $labels = [];
+
+            if ($isDeputyHead) {
+                $labels = Deputy::where('head_user_id', $user->id)
+                    ->pluck('title')->map(fn ($t) => __('معاونت') . ' ' . $t)->all();
+            }
+
+            if ($isUnitManager) {
+                $labels = array_merge($labels, \App\Models\Unit::where('manager_user_id', $user->id)
+                    ->pluck('title')->map(fn ($t) => __('واحد') . ' ' . $t)->all());
+            }
 
             return [
-                User::with($with)->where('unit_id', $unit->id)->orderBy('name')->get(),
-                'manager',
-                __('واحد') . ' ' . $unit->title,
-            ];
-        }
-
-        if ($user->isDeputyHead()) {
-            $deputy = Deputy::where('head_user_id', $user->id)->firstOrFail();
-
-            return [
-                User::with($with)->whereIn('id', $deputy->allPersonnelIds())->orderBy('name')->get(),
-                'deputy',
-                __('معاونت') . ' ' . $deputy->title,
+                User::with($with)->whereIn('id', $ids)->orderBy('name')->get(),
+                // نقش «معاون» ارجح است: اختیاراتش شامل اختیارات مدیر واحد هم هست.
+                $isDeputyHead ? 'deputy' : 'manager',
+                implode('، ', $labels),
             ];
         }
 
@@ -202,7 +212,7 @@ class OvertimePeriodController extends Controller
     public function storeNormal(OvertimeNormalRequest $request, User $personnel): JsonResponse
     {
         $manager = $request->user();
-        $unit = $this->assertManagerOwnsPersonnel($manager, $personnel);
+        $this->assertCanRegisterNormalFor($manager, $personnel);
 
         $year = (int) $request->input('jalali_year');
         $month = (int) $request->input('jalali_month');
@@ -273,15 +283,19 @@ class OvertimePeriodController extends Controller
             'overwrite' => ['nullable', 'boolean'],
         ]);
 
-        $unit = \App\Models\Unit::where('manager_user_id', $manager->id)->first();
-        abort_unless($unit, 403, __('شما مدیر هیچ واحدی نیستید.'));
+        // مدیر واحد یا معاون؛ معاون می‌تواند برای همه‌ی واحدهای زیرمجموعه‌اش ثبت کند.
+        //
+        // شرط ۴۰۳ روی «نقش» است نه «خالی بودن محدوده»: مدیرِ واحدی که هنوز
+        // پرسنلی ندارد باید پاسخ خالی بگیرد، نه خطای دسترسی.
+        abort_unless($manager->isUnitManager() || $manager->isDeputyHead(), 403, __('شما مدیر هیچ واحد یا معاونتی نیستید.'));
+        $scopeIds = $this->registerablePersonnelIds($manager);
 
         $year = (int) $validated['jalali_year'];
         $month = (int) $validated['jalali_month'];
         $hours = (string) $validated['normal_hours'];
         $overwrite = (bool) ($validated['overwrite'] ?? false);
 
-        $personnel = User::where('unit_id', $unit->id)
+        $personnel = User::whereIn('id', $scopeIds)
             ->when(!empty($validated['personnel_ids']), fn ($q) => $q->whereIn('id', $validated['personnel_ids']))
             ->with(['position', 'contractType'])
             ->get();
@@ -376,13 +390,13 @@ class OvertimePeriodController extends Controller
             'personnel_ids.*' => ['integer'],
         ]);
 
-        $unit = \App\Models\Unit::where('manager_user_id', $manager->id)->first();
-        abort_unless($unit, 403, __('شما مدیر هیچ واحدی نیستید.'));
+        abort_unless($manager->isUnitManager() || $manager->isDeputyHead(), 403, __('شما مدیر هیچ واحد یا معاونتی نیستید.'));
+        $scopeIds = $this->registerablePersonnelIds($manager);
 
         $year = (int) $validated['jalali_year'];
         $month = (int) $validated['jalali_month'];
 
-        $personnelIds = User::where('unit_id', $unit->id)
+        $personnelIds = User::whereIn('id', $scopeIds)
             ->when(!empty($validated['personnel_ids']), fn ($q) => $q->whereIn('id', $validated['personnel_ids']))
             ->pluck('id');
 
@@ -439,7 +453,9 @@ class OvertimePeriodController extends Controller
     public function submit(Request $request, OvertimePeriod $period): JsonResponse
     {
         $manager = $request->user();
-        $this->assertManagerOwnsPersonnel($manager, $period->personnel);
+        // معاونی که خودش ثبت کرده باید بتواند ارسال هم بکند، وگرنه رکورد در
+        // وضعیت draft گیر می‌کرد.
+        $this->assertCanRegisterNormalFor($manager, $period->personnel);
 
         abort_unless($period->status->editableByManager(), 422, __('این دوره در وضعیت فعلی قابل ارسال نیست.'));
 
@@ -597,6 +613,58 @@ class OvertimePeriodController extends Controller
         abort_if(!$unit || $unit->manager_user_id !== $manager->id, 403, __('این پرسنل زیرمجموعه‌ی شما نیست.'));
 
         return $unit;
+    }
+
+    /**
+     * آیا این کاربر اجازه‌ی ثبت اضافه‌کار «عادی» برای این پرسنل را دارد؟
+     *
+     * دو نفر می‌توانند: مدیرِ واحدِ پرسنل، و معاونِ معاونتی که پرسنل زیرمجموعه‌اش
+     * است. معاونت «در صورت لزوم» ثبت می‌کند - مثلاً وقتی واحدی مدیر ندارد یا مدیر
+     * در دسترس نیست - پس دسترسی‌اش جایگزین مدیر نیست، بلکه پوششِ اوست.
+     */
+    private function canRegisterNormalFor(User $actor, User $personnel): bool
+    {
+        if ($personnel->unit && $personnel->unit->manager_user_id === $actor->id) {
+            return true;
+        }
+
+        return $this->deputyOwns($actor, $personnel);
+    }
+
+    /**
+     * شناسه‌ی پرسنلی که این کاربر می‌تواند برایشان اضافه‌کار عادی ثبت کند.
+     *
+     * مدیر واحد => پرسنل واحد خودش. معاون => همه‌ی پرسنل معاونتش (واحدهای
+     * زیرمجموعه + پرسنل مستقیم). اگر کاربر هر دو نقش را داشته باشد - که در
+     * داده‌ی واقعی رایج است - اجتماع هر دو را می‌گیریم، وگرنه معاونی که مدیر یک
+     * واحد هم هست فقط همان یک واحد را می‌دید.
+     *
+     * @return \Illuminate\Support\Collection<int,int>
+     */
+    private function registerablePersonnelIds(User $actor): \Illuminate\Support\Collection
+    {
+        $ids = collect();
+
+        $unitIds = \App\Models\Unit::where('manager_user_id', $actor->id)->pluck('id');
+        if ($unitIds->isNotEmpty()) {
+            $ids = $ids->merge(User::whereIn('unit_id', $unitIds)->pluck('id'));
+        }
+
+        foreach (Deputy::where('head_user_id', $actor->id)->get() as $deputy) {
+            $ids = $ids->merge($deputy->allPersonnelIds());
+        }
+
+        return $ids->unique()->values();
+    }
+
+    /** همان بررسی، ولی به‌جای false برگرداندن، درخواست را رد می‌کند. */
+    private function assertCanRegisterNormalFor(User $actor, User $personnel): void
+    {
+        abort_unless(
+            $this->canRegisterNormalFor($actor, $personnel),
+            403,
+            __('این پرسنل زیرمجموعه‌ی شما نیست.')
+        );
     }
 
     private function assertDeputyOwnsPersonnel(User $deputyHead, User $personnel): Deputy
