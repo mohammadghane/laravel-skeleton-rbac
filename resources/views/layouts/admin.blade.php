@@ -381,12 +381,18 @@
                         'show' => $can('menu/overtime-entry') || $inChart,
                     ],
                     [
+                        'label' => __('پارامترهای مالی'),
+                        'route' => 'admin.overtime.financial-params.index',
+                        'active' => 'admin.overtime.financial-params.*',
+                        'show' => $can('menu/financial-params'),
+                    ],
+                    [
                         'label' => __('نقش سازمانی'),
                         'route' => 'admin.roles.index',
                         'active' => 'admin.roles.*',
                         'show' => $can('menu/roles'),
                     ],
-                    [
+                    /*[
                         'label' => __('موقعیت جغرافیایی'),
                         'route' => 'admin.locations.index',
                         'active' => 'admin.locations.*',
@@ -397,7 +403,7 @@
                         'route' => 'admin.location-comments.index',
                         'active' => 'admin.location-comments.*',
                         'show' => $can('menu/location-comments'),
-                    ],
+                    ],*/
                     [
                         'label' => __('گزارش تغییرات'),
                         'route' => 'admin.audit-logs.index',

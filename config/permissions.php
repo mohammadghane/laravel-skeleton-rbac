@@ -30,6 +30,7 @@ return [
                     'menu/contract-types' => ['title' => 'قراردادها و سقف‌ها'],
                     'menu/personnel-sync' => ['title' => 'همگام‌سازی پرسنل'],
                     'menu/import' => ['title' => 'کسر کار / ماموریت'],
+                    'menu/financial-params' => ['title' => 'پارامترهای مالی'],
                     'menu/special-items' => ['title' => 'آیتم‌های ویژه'],
                     'menu/capacity-transfers' => ['title' => 'واگذاری ظرفیت مازاد'],
                     'menu/overtime-entry' => ['title' => 'ثبت اضافه‌کار'],

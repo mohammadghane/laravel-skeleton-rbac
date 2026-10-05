@@ -113,6 +113,21 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('submit', async (e) => {
     const form = e.target.closest('#role-form, #user-form, #perms-form, #settings-form, .js-ajax-form');
     if (!form) return;
+    
+    // اطمینان حاصل کنیم که اگر دکمه‌ای با name="decision" زده شده، مقدار آن به FormData اضافه شود.
+    // این مورد به‌ویژه برای فرم‌های deputy-review و ceo-review مهم است.
+    const submitButton = e.submitter;
+    if (submitButton && submitButton.hasAttribute('name') && submitButton.hasAttribute('value')) {
+        // اگر دکمه name="decision" داشته باشد، اطمینان حاصل کنیم مقدار آن ارسال می‌شود
+        if (submitButton.name === 'decision') {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'decision';
+            input.value = submitButton.value;
+            form.appendChild(input);
+        }
+    }
+    
     e.preventDefault();
 
     try {

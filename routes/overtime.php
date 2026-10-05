@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\Overtime\ContractTypeController;
 use App\Http\Controllers\Admin\Overtime\DeputyCapacityTransferController;
 use App\Http\Controllers\Admin\Overtime\DeputyController;
 use App\Http\Controllers\Admin\Overtime\OvertimeExportController;
+use App\Http\Controllers\Admin\Overtime\OvertimeFinancialParamsController;
 use App\Http\Controllers\Admin\Overtime\OvertimeImportController;
 use App\Http\Controllers\Admin\Overtime\OvertimePeriodController;
 use App\Http\Controllers\Admin\Overtime\OvertimeReportController;
@@ -133,6 +134,11 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
 
         Route::post('personnel/{personnel}/special-items/{specialItem}/apply', [OvertimePeriodController::class, 'applyHrSpecialItem'])->name('periods.special-items.apply-hr');
         Route::post('personnel/{personnel}/financial-params', [OvertimePeriodController::class, 'updateFinancialParams'])->name('personnel.financial-params.update');
+
+        // صفحه تنظیم پارامترهای مالی - فقط برای مدیر منابع انسانی
+        Route::get('financial-params', [OvertimeFinancialParamsController::class, 'index'])->name('financial-params.index');
+        Route::get('financial-params/{personnel}', [OvertimeFinancialParamsController::class, 'edit'])->name('financial-params.edit');
+        Route::post('financial-params/bulk', [OvertimeFinancialParamsController::class, 'bulkStore'])->name('financial-params.bulk-store');
 
         Route::get('reports/export', [OvertimeExportController::class, 'financial'])->name('reports.export');
     });

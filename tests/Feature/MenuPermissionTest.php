@@ -35,6 +35,7 @@ class MenuPermissionTest extends TestCase
         'menu/capacity-transfers' => 'admin.overtime.capacity-transfers.index',
         'menu/locations' => 'admin.locations.index',
         'menu/location-comments' => 'admin.location-comments.index',
+        'menu/financial-params' => 'admin.overtime.financial-params.index',
     ];
 
     /** کاربری با مجموعه‌ی دقیقی از دسترسی‌ها می‌سازد. */
@@ -62,7 +63,7 @@ class MenuPermissionTest extends TestCase
             $this->assertTrue($configured->contains($key), "دسترسی {$key} در config/permissions.php تعریف نشده است.");
         }
 
-        $this->assertCount(15, $configured, 'باید دقیقاً ۱۵ دسترسی منو وجود داشته باشد.');
+        $this->assertCount(16, $configured, 'باید دقیقاً ۱۶ دسترسی منو وجود داشته باشد.');
     }
 
     public function test_a_user_can_only_reach_menus_their_role_allows(): void

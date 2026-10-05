@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -c \"PERSONNEL_CLIENT_SECRET=$\" .env.example)",
+      "Bash(php -l app/Http/Requests/Admin/Overtime/ContractTypeRequest.php)",
+      "Bash(grep -cE \"^\\\\+[ ]{4,}\")",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(php -l tests/Feature/Overtime/OvertimeCeilingServiceTest.php)",
+      "Bash(cd /var/www/laravel *)",
+      "Bash(php -l app/Http/Controllers/Admin/Overtime/PersonnelSyncController.php)",
+      "Bash(node --check public/js/acl-admin.js)",
+      "Bash(grep -n 'nav-link\\\\|sidebarLinks\\\\|$menu' resources/views/layouts/admin.blade.php)",
+      "Bash(php -r '$m=json_decode\\(file_get_contents\\(\"public/build/manifest.json\"\\),true\\); *)",
+      "Bash(php -r 'require \"vendor/autoload.php\"; $a=require \"bootstrap/app.php\"; $a->make\\(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class\\)->bootstrap\\(\\); *)",
+      "Bash(php -l app/Models/Location.php)",
+      "Bash(node --check resources/js/map.js)",
+      "Bash(php -l app/Http/Controllers/Admin/LocationCommentController.php)"
+    ],
+    "additionalDirectories": [
+      "/var/www/laravel/routes",
+      "/tmp/claude-1000/-var-www-laravel/8b2cdcfd-ff4b-41c2-8bbc-5e0dc45eda72/scratchpad",
+      "/var/www/laravel/app/Http/Controllers/Admin/Overtime"
+    ]
+  }
+}

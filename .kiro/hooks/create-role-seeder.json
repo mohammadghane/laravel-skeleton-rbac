@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Create Role Seeder",
+      "trigger": "SessionStart",
+      "description": "Create migration for HR, unit manager, deputy, and CEO roles",
+      "action": {
+        "type": "command",
+        "command": "cd /var/www/laravel && php artisan make:seeder RolesAndPermissionsSeeder"
+      }
+    }
+  ]
+}
