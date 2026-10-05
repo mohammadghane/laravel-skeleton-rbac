@@ -115,20 +115,28 @@ class OvertimeFinancialParamsController extends Controller
             'worked_days_count' => ['nullable', 'integer', 'min:0', 'max:31'],
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
-            'personnel_ids' => ['required', 'string'],
+            'personnel_ids' => ['nullable', 'string'],
+            'apply_to_all' => ['required', 'boolean'],
         ]);
 
-        $personnelIds = json_decode($validated['personnel_ids'], true);
-        if (!is_array($personnelIds)) {
-            return response()->json(['success' => false, 'message' => __('لیست پرسنل نامعتبر است.')], 422);
-        }
-
+        $applyAll = (bool) $validated['apply_to_all'];
         $year = (int) $validated['jalali_year'];
         $month = (int) $validated['jalali_month'];
         $coefficient = $request->filled('rial_coefficient') ? (string) $request->input('rial_coefficient') : null;
         $workedDays = $request->filled('worked_days_count') ? (int) $request->input('worked_days_count') : null;
 
-        $personnel = User::whereIn('id', $personnelIds)->get();
+        // اگر apply_to_all فعال است، همه پرسنل را انتخاب کن
+        if ($applyAll) {
+            $personnel = User::orderBy('name')->get();
+        } else {
+            // در غیر این صورت، فقط پرسنل انتخاب‌شده را انتخاب کن
+            $personnelIds = json_decode($validated['personnel_ids'], true);
+            if (!is_array($personnelIds) || empty($personnelIds)) {
+                return response()->json(['success' => false, 'message' => __('لیست پرسنل نامعتبر است.')], 422);
+            }
+
+            $personnel = User::whereIn('id', $personnelIds)->get();
+        }
 
         $updated = 0;
         $skipped = [];

@@ -46,7 +46,15 @@
                 @csrf
                 <input type="hidden" name="jalali_year" value="{{ $year }}">
                 <input type="hidden" name="jalali_month" value="{{ $month }}">
+                <input type="hidden" name="apply_to_all" id="bulk-apply-all" value="0">
                 <input type="hidden" name="personnel_ids" id="bulk-personnel-ids" value="">
+
+                <div class="flex items-center gap-2 pb-2">
+                    <input type="checkbox" id="select-all-personnel" class="h-4 w-4 rounded border-ink/30 text-pine focus:ring-pine/20">
+                    <label for="select-all-personnel" class="text-sm font-medium text-ink">
+                        {{ __('ثبت برای همه پرسنل فهرست') }}
+                    </label>
+                </div>
 
                 <div>
                     <label class="mb-1 block text-sm font-medium text-ink/70">{{ __('ضریب ریالی') }}</label>
@@ -126,6 +134,7 @@
 <script>
     // انتخاب/لغو انتخاب همه
     const selectAll = document.querySelector('#select-all');
+    const selectAllPersonnel = document.querySelector('#select-all-personnel');
     const rowSelects = document.querySelectorAll('.row-select');
     
     if (selectAll && rowSelects.length > 0) {
@@ -134,16 +143,41 @@
             updateBulkForm();
         });
         
+        // وقتی "انتخاب همه پرسنل" فعال شد، همه چک‌باکس‌ها رو انتخاب کن
+        selectAllPersonnel.addEventListener('change', function () {
+            if (this.checked) {
+                // اگر "انتخاب همه" فعال شد، همه پرسنل رو انتخاب کن
+                rowSelects.forEach(cb => cb.checked = true);
+                // مخفی کردن چک‌باکس انتخاب همه (که از قبل فعال است)
+                selectAll.checked = true;
+                document.querySelector('#bulk-apply-all').value = '1';
+            } else {
+                // اگر "انتخاب همه" غیرفعال شد، انتخاب‌ها رو پاک کن
+                rowSelects.forEach(cb => cb.checked = false);
+                selectAll.checked = false;
+                document.querySelector('#bulk-apply-all').value = '0';
+            }
+            updateBulkForm();
+        });
+        
         rowSelects.forEach(cb => {
             cb.addEventListener('change', updateBulkForm);
         });
         
         function updateBulkForm() {
-            const selectedIds = Array.from(rowSelects)
-                .filter(cb => cb.checked)
-                .map(cb => cb.value);
+            const applyAll = document.querySelector('#select-all-personnel').checked;
             
-            document.querySelector('#bulk-personnel-ids').value = JSON.stringify(selectedIds);
+            if (applyAll) {
+                // اگر "انتخاب همه" فعال است، personnel_ids خالی بماند
+                document.querySelector('#bulk-personnel-ids').value = '';
+            } else {
+                // در غیر این صورت، فقط پرسنل انتخاب‌شده را بفرست
+                const selectedIds = Array.from(rowSelects)
+                    .filter(cb => cb.checked)
+                    .map(cb => cb.value);
+                
+                document.querySelector('#bulk-personnel-ids').value = JSON.stringify(selectedIds);
+            }
         }
     }
 </script>
