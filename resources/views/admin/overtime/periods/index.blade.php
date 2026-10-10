@@ -26,6 +26,7 @@
     <div
         x-data="overtimeEntry({
             bulkUrl: '{{ route('admin.overtime.periods.bulk-normal') }}',
+            bulkExcessUrl: '{{ route('admin.overtime.periods.bulk-excess') }}',
             submitUrl: '{{ route('admin.overtime.periods.bulk-submit') }}',
             year: {{ $year }},
             month: {{ $month }},
@@ -139,6 +140,23 @@
             </div>
         @endif
 
+        @if ($role === 'deputy')
+            <div class="mb-4 rounded-2xl border border-line bg-white p-4 shadow-card">
+                <div class="flex flex-wrap items-end gap-3">
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-ink/60" for="bulk-excess-hours">{{ __('اضافه‌کار مازاد گروهی (ساعت)') }}</label>
+                        <input id="bulk-excess-hours" type="number" step="0.25" min="0" x-model="bulkExcessHours" placeholder="{{ __('مثلاً ۵') }}" class="w-40 rounded-lg border border-line px-3 py-2 font-mono text-sm focus:border-pine focus:outline-none">
+                    </div>
+                    <button type="button" @click="applyBulkExcess()" :disabled="busy || bulkExcessHours === ''" class="rounded-lg bg-pine px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+                        <template x-if="selected.length"><span>{{ __('ثبت برای') }} <span x-text="selected.length"></span> {{ __('نفر انتخاب‌شده') }}</span></template>
+                        <template x-if="!selected.length"><span>{{ __('ثبت برای همه‌ی دوره‌های قابل‌بررسی') }}</span></template>
+                    </button>
+                    <label class="flex items-center gap-2 text-xs text-ink/60"><input type="checkbox" x-model="overwriteExcess" class="rounded border-line text-pine">{{ __('بازنویسی مازاد ثبت‌شده‌ی قبلی') }}</label>
+                </div>
+                <p class="mt-2 text-xs text-ink/40">{{ __('با انتخاب ردیف‌ها، فقط همان افراد به‌روزرسانی می‌شوند. بدون انتخاب، مقدار برای همه‌ی دوره‌های قابل‌بررسی معاونت ثبت می‌شود؛ سقف سمت و ظرفیت معاونت کنترل می‌شود.') }}</p>
+            </div>
+        @endif
+
         <div class="rounded-2xl border border-line bg-white shadow-card">
             <div class="overflow-x-auto">
                 <table class="w-full text-start text-sm">
@@ -151,6 +169,7 @@
                             @endif
                             <th class="px-5 py-3 font-medium">{{ __('پرسنل') }}</th>
                             <th class="px-5 py-3 font-medium">{{ __('نوع قرارداد') }}</th>
+                            <th class="px-5 py-3 font-medium">{{ __('ساعت پیش‌فرض سمت') }}</th>
                             <th class="px-5 py-3 font-medium">{{ __('عادی') }}</th>
                             <th class="px-5 py-3 font-medium">{{ __('مازاد') }}</th>
                             <th class="px-5 py-3 font-medium">{{ __('ویژه') }}</th>
@@ -168,6 +187,7 @@
                                 $exceeds = $period?->exceedsOverallCeiling() ?? false;
                                 // ویرایش درون‌خطی فقط تا وقتی باز است که دوره هنوز به معاونت نرفته باشد.
                                 $rowEditable = $canEditInline && (!$period || $period->status->editableByManager());
+                                $rowSelectable = $rowEditable || ($role === 'deputy' && $period && $period->status->editableByDeputy());
                             @endphp
                             <tr class="hover:bg-surface/60" data-row="{{ $person->id }}" x-data="{ saving: false, saved: false, error: '' }">
                                 @if ($canEditInline)
@@ -176,7 +196,7 @@
                                             type="checkbox" value="{{ $person->id }}"
                                             x-model.number="selected"
                                             class="rounded border-line text-pine focus:ring-pine"
-                                            @if (!$rowEditable) disabled @endif
+                                            @if (!$rowSelectable) disabled @endif
                                         >
                                     </td>
                                 @endif
@@ -191,6 +211,10 @@
                                     @if ($person->position)
                                         <div class="text-ink/40">{{ $person->position->title }}</div>
                                     @endif
+                                </td>
+
+                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70">
+                                    {{ $person->position_id ? ($defaultHoursByPosition->get($person->position_id) ?? '—') : '—' }}
                                 </td>
 
                                 {{-- ستون «عادی»: ویرایش درون‌خطی به‌جای بازکردن فرم جداگانه. --}}
@@ -216,7 +240,7 @@
                                     @endif
                                 </td>
 
-                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $period?->excess_hours ?? '—' }}</td>
+                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70" data-cell="excess-{{ $person->id }}">{{ $period?->excess_hours ?? '—' }}</td>
                                 <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $period ? number_format((float) $specialHours, 2) : '—' }}</td>
 
                                 <td class="px-5 py-3.5 font-mono text-xs font-medium text-ink" data-cell="total-{{ $person->id }}">{{ $period?->totalHours() ?? '—' }}</td>
@@ -286,7 +310,9 @@
     function overtimeEntry(config) {
         return {
             bulkHours: '',
+            bulkExcessHours: '',
             overwrite: false,
+            overwriteExcess: false,
             busy: false,
             selected: [],
             skipped: [],
@@ -354,6 +380,47 @@
                     // سطرهای موفق بلافاصله به‌روز می‌شوند، چه عملیات کامل موفق باشد
                     // چه جزئی. پیش‌تر در حالت جزئی هیچ به‌روزرسانی‌ای انجام نمی‌شد و
                     // کاربر تا رفرش دستی، اعداد قدیمی را می‌دید.
+                    this.applyRows(data.rows ?? {});
+                    this.clearSelection();
+                } catch (error) {
+                    this.toast('ارتباط با سرور برقرار نشد.');
+                } finally {
+                    this.busy = false;
+                }
+            },
+
+            async applyBulkExcess() {
+                if (this.bulkExcessHours === '' || this.busy) return;
+
+                const scope = this.selected.length ? `${this.selected.length} نفر انتخاب‌شده` : 'همه‌ی دوره‌های قابل‌بررسی معاونت';
+                if (!confirm(`ثبت ${this.bulkExcessHours} ساعت اضافه‌کار مازاد برای ${scope}؟`)) return;
+
+                this.busy = true;
+                this.skipped = [];
+                try {
+                    const response = await fetch(config.bulkExcessUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            excess_hours: this.bulkExcessHours,
+                            jalali_year: config.year,
+                            jalali_month: config.month,
+                            personnel_ids: this.selected,
+                            overwrite: this.overwriteExcess,
+                        }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        this.toast(data.message ?? 'خطا در ثبت گروهی اضافه‌کار مازاد.');
+                        return;
+                    }
+                    this.skipped = data.skipped ?? [];
+                    this.toast(data.message, data.applied > 0 ? 'success' : 'error');
                     this.applyRows(data.rows ?? {});
                     this.clearSelection();
                 } catch (error) {
@@ -475,6 +542,10 @@
                     if (row.normal_hours !== undefined) {
                         const input = document.querySelector(`[data-cell="normal-${id}"] input`);
                         if (input) input.value = row.normal_hours;
+                    }
+                    if (row.excess_hours !== undefined) {
+                        const cell = document.querySelector(`[data-cell="excess-${id}"]`);
+                        if (cell) cell.textContent = row.excess_hours;
                     }
 
                     this.refreshRow(id, row);

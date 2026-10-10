@@ -94,6 +94,12 @@ class User extends Authenticatable
         return $this->hasMany(\App\Models\OvertimePeriod::class, 'personnel_id');
     }
 
+    public function eligibleSpecialItems(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(SpecialItem::class, 'personnel_special_items', 'personnel_id', 'special_item_id')
+            ->wherePivot('is_eligible', true)->where('special_items.is_active', true);
+    }
+
     /** شناسه‌ی معاونتی که این پرسنل واقعاً زیرمجموعه‌ی آن است - چه مستقیم، چه از طریق واحد. */
     public function effectiveDeputyId(): ?int
     {

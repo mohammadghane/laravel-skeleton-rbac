@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\Overtime\OvertimeReviewRequest;
 use App\Http\Requests\Admin\Overtime\OvertimeSpecialItemLineRequest;
 use App\Models\Deputy;
 use App\Models\OvertimePeriod;
+use App\Models\Position;
 use App\Models\SpecialItem;
 use App\Models\User;
 use App\Services\OvertimeCeilingService;
@@ -53,6 +54,11 @@ class OvertimePeriodController extends Controller
 
         [$personnel, $role, $scopeTitle] = $this->resolveWorkflowScope($user);
 
+        $positions = Position::whereIn('id', $personnel->pluck('position_id')->filter()->unique())->get();
+        $defaultHoursByPosition = $positions->mapWithKeys(fn (Position $position) => [
+            $position->id => $position->ceilingFor($year, $month)?->manager_ceiling_per_person,
+        ]);
+
         $periods = OvertimePeriod::with(['specialItemLines'])
             ->where('jalali_year', $year)->where('jalali_month', $month)
             ->whereIn('personnel_id', $personnel->pluck('id'))
@@ -91,6 +97,7 @@ class OvertimePeriodController extends Controller
             'year' => $year,
             'month' => $month,
             'specialItems' => SpecialItem::where('is_active', true)->orderBy('title')->get(),
+            'defaultHoursByPosition' => $defaultHoursByPosition,
         ]);
     }
 
@@ -163,6 +170,11 @@ class OvertimePeriodController extends Controller
             ->where('jalali_year', $year)->where('jalali_month', $month)
             ->first();
 
+        if ($period) {
+            $this->periodService->syncPeriodSpecialItems($period);
+            $period->load('specialItemLines');
+        }
+
         $ceilingVersion = $personnel->contractType?->ceilingFor($year, $month);
 
         return view('admin.overtime.periods.show', [
@@ -170,7 +182,9 @@ class OvertimePeriodController extends Controller
             'period' => $period,
             'year' => $year,
             'month' => $month,
-            'specialItems' => SpecialItem::where('is_active', true)->orderBy('title')->get(),
+            'specialItems' => SpecialItem::where('is_active', true)
+                ->whereHas('eligiblePersonnel', fn ($q) => $q->where('personnel_id', $personnel->id)->where('is_eligible', true))
+                ->orderBy('title')->get(),
             'ceilingVersion' => $ceilingVersion,
             'windowOpen' => (bool) $ceilingVersion?->isRegistrationWindowOpen(),
             'isManager' => $personnel->unit && $personnel->unit->manager_user_id === $user->id,
@@ -368,6 +382,109 @@ class OvertimePeriodController extends Controller
         ]);
     }
 
+    /** ثبت گروهی اضافه‌کار مازاد برای دوره‌های پرسنلِ معاونت جاری. */
+    public function bulkStoreExcess(Request $request): JsonResponse
+    {
+        $deputyHead = $request->user();
+        $validated = $request->validate([
+            'excess_hours' => ['required', 'numeric', 'min:0'],
+            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
+            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
+            'personnel_ids' => ['nullable', 'array'],
+            'personnel_ids.*' => ['integer'],
+            'overwrite' => ['nullable', 'boolean'],
+        ]);
+
+        abort_unless($deputyHead->isDeputyHead(), 403, __('ثبت گروهی اضافه‌کار مازاد فقط در اختیار معاونت است.'));
+
+        $year = (int) $validated['jalali_year'];
+        $month = (int) $validated['jalali_month'];
+        $hours = (string) $validated['excess_hours'];
+        $overwrite = (bool) ($validated['overwrite'] ?? false);
+        $scopeIds = Deputy::where('head_user_id', $deputyHead->id)->get()
+            ->flatMap(fn (Deputy $deputy) => $deputy->allPersonnelIds())->unique()->values();
+
+        $selectedIds = collect($validated['personnel_ids'] ?? []);
+        if ($selectedIds->isNotEmpty()) {
+            abort_if($selectedIds->diff($this->registerablePersonnelIds($deputyHead))->isNotEmpty(), 403, __('در بین افراد انتخاب‌شده، پرسنلی خارج از محدوده‌ی دسترسی شما وجود دارد.'));
+        }
+        $outsideDeputyScopeIds = $selectedIds->diff($scopeIds);
+        $deputySelectedIds = $selectedIds->intersect($scopeIds);
+
+        $periods = OvertimePeriod::with(['personnel.position', 'personnel.unit', 'personnel.deputy'])
+            ->where('jalali_year', $year)->where('jalali_month', $month)
+            ->whereIn('personnel_id', $scopeIds)
+            ->when($selectedIds->isNotEmpty(), fn ($q) => $q->whereIn('personnel_id', $deputySelectedIds))
+            ->get();
+
+        $applied = 0;
+        $skipped = [];
+        $rows = [];
+        if ($outsideDeputyScopeIds->isNotEmpty()) {
+            User::whereIn('id', $outsideDeputyScopeIds)->get()->each(function (User $person) use (&$skipped) {
+                $skipped[] = trim($person->name . ' ' . $person->family) . ' — ' . __('این پرسنل زیرمجموعه‌ی معاونت شما نیست');
+            });
+        }
+        $missingSelectedIds = $deputySelectedIds->diff($periods->pluck('personnel_id'));
+        if ($missingSelectedIds->isNotEmpty()) {
+            User::whereIn('id', $missingSelectedIds)->get()->each(function (User $person) use (&$skipped) {
+                $skipped[] = trim($person->name . ' ' . $person->family) . ' — ' . __('برای این ماه دوره‌ای ثبت نشده است');
+            });
+        }
+
+        foreach ($periods as $period) {
+            $person = $period->personnel;
+            $label = trim($person->name . ' ' . $person->family);
+
+            if (!$period->status->editableByDeputy()) {
+                if ($selectedIds->isNotEmpty()) {
+                    $skipped[] = $label . ' — ' . $period->status->label();
+                }
+                continue;
+            }
+
+            if (!$overwrite && bccomp((string) $period->excess_hours, '0', 2) === 1) {
+                $skipped[] = $label . ' — ' . __('از قبل مقدار مازاد دارد');
+                continue;
+            }
+
+            try {
+                $this->ceilingService->assertExcessWithinCeiling(
+                    $person, $year, $month, $hours, excludePeriodId: $period->id
+                );
+
+                $period->excess_hours = $hours;
+                $period->excess_ceiling_snapshot = $person->position?->ceilingFor($year, $month)?->ceiling_per_person;
+                $period->save();
+                $period->load('specialItemLines');
+                $rows[$person->id] = [
+                    'excess_hours' => (string) $period->excess_hours,
+                    'total' => $period->totalHours(),
+                    'payable' => $period->payableHours(),
+                    'capped' => $period->cappedHours(),
+                    'exceeds' => $period->exceedsOverallCeiling(),
+                    'status' => $period->status->value,
+                    'status_label' => $period->status->label(),
+                ];
+                $applied++;
+            } catch (OvertimeCeilingExceededException $e) {
+                $skipped[] = $label . ' — ' . $e->getMessage();
+            } catch (Throwable $e) {
+                $skipped[] = $label . ' — ' . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $applied > 0
+                ? __('اضافه‌کار مازاد :hours ساعت برای :count نفر ثبت شد.', ['hours' => $hours, 'count' => $applied])
+                : __('هیچ رکوردی ثبت نشد.'),
+            'applied' => $applied,
+            'skipped' => $skipped,
+            'rows' => $rows,
+        ]);
+    }
+
     /**
      * ارسال گروهی دوره‌های آماده به معاونت، از همان صفحه‌ی فهرست.
      *
@@ -552,24 +669,7 @@ class OvertimePeriodController extends Controller
      */
     public function applySpecialItem(OvertimeSpecialItemLineRequest $request, OvertimePeriod $period, SpecialItem $specialItem): JsonResponse
     {
-        $manager = $request->user();
-
-        $this->assertManagerOwnsPersonnel($manager, $period->personnel);
-        abort_unless($specialItem->submitter_role === SpecialItem::SUBMITTER_UNIT_MANAGER, 403, __('ثبت این آیتم فقط در اختیار منابع انسانی است؛ از مسیر HR استفاده کنید.'));
-        abort_unless($period->status->editableByManager(), 422, __('این دوره در وضعیت فعلی قابل ویرایش نیست.'));
-
-        $line = $period->specialItemLines()->updateOrCreate(
-            ['special_item_id' => $specialItem->id],
-            [
-                'title_snap' => $specialItem->title,
-                'hours' => $request->input('hours'),
-                'requires_deputy_approval' => true,
-                'deputy_approved' => false,
-                'entered_by' => $manager->id,
-            ]
-        );
-
-        return response()->json(['success' => true, 'message' => __('آیتم ویژه ثبت شد و در انتظار تایید معاونت است.'), 'data' => $line]);
+        abort(403, __('مقدار آیتم‌های ویژه را فقط منابع انسانی تعیین می‌کند.'));
     }
 
     /**
@@ -580,12 +680,13 @@ class OvertimePeriodController extends Controller
     public function applyHrSpecialItem(OvertimeSpecialItemLineRequest $request, User $personnel, SpecialItem $specialItem): JsonResponse
     {
         abort_unless($request->user()->hasPermission('overtime/hr-manage'), 403);
-        abort_unless($specialItem->submitter_role === SpecialItem::SUBMITTER_HR, 422, __('ثبت این آیتم در اختیار مدیر واحد است، نه HR.'));
+        abort_unless($specialItem->is_active, 422, __('این آیتم غیرفعال است.'));
+        abort_unless($specialItem->eligiblePersonnel()->where('personnel_id', $personnel->id)->where('is_eligible', true)->exists(), 422, __('این پرسنل مشمول این آیتم ویژه نیست.'));
 
         $this->periodService->applyHrSpecialItem(
             $personnel, $specialItem,
             (int) $request->input('jalali_year'), (int) $request->input('jalali_month'),
-            (string) $request->input('hours'), $request->user()->id,
+            (string) $specialItem->default_value, $request->user()->id,
         );
 
         return response()->json(['success' => true, 'message' => __('آیتم ویژه روی اضافه‌کار این پرسنل اعمال شد.')]);

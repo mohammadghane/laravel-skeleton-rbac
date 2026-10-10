@@ -26,7 +26,7 @@ class OvertimePeriodService
             return $existing;
         }
 
-        return OvertimePeriod::create([
+        $period = OvertimePeriod::create([
             'personnel_id' => $personnel->id,
             'jalali_year' => $jalaliYear,
             'jalali_month' => $jalaliMonth,
@@ -40,6 +40,46 @@ class OvertimePeriodService
             'contract_type_id_snap' => $personnel->contract_type_id,
             'contract_type_title_snap' => $personnel->contractType?->title,
         ]);
+        $this->syncPeriodSpecialItems($period);
+
+        return $period;
+    }
+
+    /** Persist each eligible HR item at its shared value on all existing periods. */
+    public function syncSpecialItem(SpecialItem $item): void
+    {
+        $personnelIds = $item->is_active
+            ? $item->eligiblePersonnel()->where('is_eligible', true)->pluck('personnel_id')
+            : collect();
+        OvertimePeriod::whereIn('personnel_id', $personnelIds)->get()->each(function (OvertimePeriod $period) use ($item) {
+            $this->writeHrItemLine($period, $item, auth()->id());
+        });
+        \App\Models\OvertimeSpecialItemLine::where('special_item_id', $item->id)
+            ->whereNotIn('overtime_period_id', OvertimePeriod::whereIn('personnel_id', $personnelIds)->select('id'))
+            ->delete();
+    }
+
+    public function syncPeriodSpecialItems(OvertimePeriod $period): void
+    {
+        $items = SpecialItem::query()->where('is_active', true)
+            ->whereHas('eligiblePersonnel', fn ($q) => $q->where('personnel_id', $period->personnel_id)->where('is_eligible', true))->get();
+        foreach ($items as $item) {
+            $this->writeHrItemLine($period, $item, null);
+        }
+    }
+
+    private function writeHrItemLine(OvertimePeriod $period, SpecialItem $item, ?int $actorId): void
+    {
+        $values = [
+            'title_snap' => $item->title,
+            'hours' => $item->default_value,
+            'requires_deputy_approval' => false,
+            'deputy_approved' => true,
+        ];
+        if ($actorId !== null) {
+            $values['entered_by'] = $actorId;
+        }
+        $period->specialItemLines()->updateOrCreate(['special_item_id' => $item->id], $values);
     }
 
     /**
@@ -51,15 +91,6 @@ class OvertimePeriodService
     {
         $period = $this->findOrCreateDraft($personnel, $jalaliYear, $jalaliMonth);
 
-        $period->specialItemLines()->updateOrCreate(
-            ['special_item_id' => $item->id],
-            [
-                'title_snap' => $item->title,
-                'hours' => $hours,
-                'requires_deputy_approval' => false,
-                'deputy_approved' => true,
-                'entered_by' => $actorId,
-            ]
-        );
+        $this->writeHrItemLine($period, $item, $actorId);
     }
 }

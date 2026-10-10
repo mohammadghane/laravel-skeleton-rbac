@@ -14,7 +14,6 @@ use App\Http\Controllers\Admin\Overtime\PersonnelSpecialItemController;
 use App\Http\Controllers\Admin\Overtime\PositionCeilingController;
 use App\Http\Controllers\Admin\Overtime\PositionController;
 use App\Http\Controllers\Admin\Overtime\SpecialItemController;
-use App\Http\Controllers\Admin\Overtime\SpecialItemValueController;
 use App\Http\Controllers\Admin\Overtime\UnitController;
 use Illuminate\Support\Facades\Route;
 
@@ -106,6 +105,8 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         Route::middleware('permission:overtime/hr-manage')->group(function () {
             Route::get('special-items/create', [SpecialItemController::class, 'edit'])->name('special-items.create');
             Route::get('special-items/{specialItem}/edit', [SpecialItemController::class, 'edit'])->name('special-items.edit');
+            Route::get('special-items/{specialItem}/personnel', [SpecialItemController::class, 'personnel'])->name('special-items.personnel');
+            Route::put('special-items/{specialItem}/personnel', [SpecialItemController::class, 'syncPersonnel'])->name('special-items.personnel.sync');
             Route::post('special-items/bulk-destroy', [SpecialItemController::class, 'bulkDestroy'])->name('special-items.bulk-destroy');
             Route::post('special-items', [SpecialItemController::class, 'store'])->name('special-items.store');
             Route::put('special-items/{specialItem}', [SpecialItemController::class, 'update'])->name('special-items.update');
@@ -130,8 +131,6 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
     Route::middleware('permission:overtime/hr-manage')->group(function () {
         Route::get('personnel/{personnel}/special-items', [PersonnelSpecialItemController::class, 'index'])->name('personnel.special-items.index');
         Route::put('personnel/{personnel}/special-items/{specialItem}', [PersonnelSpecialItemController::class, 'update'])->name('personnel.special-items.update');
-        Route::post('personnel/{personnel}/special-items/{specialItem}/value', [SpecialItemValueController::class, 'store'])->name('personnel.special-items.value');
-
         Route::post('personnel/{personnel}/special-items/{specialItem}/apply', [OvertimePeriodController::class, 'applyHrSpecialItem'])->name('periods.special-items.apply-hr');
         Route::post('personnel/{personnel}/financial-params', [OvertimePeriodController::class, 'updateFinancialParams'])->name('personnel.financial-params.update');
 
@@ -151,6 +150,7 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         Route::get('periods/personnel/{personnel}', [OvertimePeriodController::class, 'show'])->name('periods.show');
         // ثبت گروهی برای همه‌ی زیرمجموعه - باید پیش از مسیر پارامتری بیاید.
         Route::post('periods/bulk-normal', [OvertimePeriodController::class, 'bulkStoreNormal'])->name('periods.bulk-normal');
+        Route::post('periods/bulk-excess', [OvertimePeriodController::class, 'bulkStoreExcess'])->name('periods.bulk-excess');
         Route::post('personnel/{personnel}/normal', [OvertimePeriodController::class, 'storeNormal'])->name('periods.normal.store');
         // ارسال گروهی به معاونت - باید پیش از مسیر پارامتری بیاید.
         Route::post('periods/bulk-submit', [OvertimePeriodController::class, 'bulkSubmit'])->name('periods.bulk-submit');

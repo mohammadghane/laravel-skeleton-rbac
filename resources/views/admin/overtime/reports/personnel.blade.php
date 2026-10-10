@@ -57,7 +57,12 @@
                             <td class="px-5 py-3.5 text-xs text-ink/60">{{ $row['contract_type'] ?? '—' }}</td>
                             <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $row['normal_hours'] }}</td>
                             <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $row['excess_hours'] }}</td>
-                            <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $row['special_hours'] }}</td>
+                            <td class="px-5 py-3.5 font-mono text-xs text-ink/70">
+                                {{ $row['special_hours'] }}
+                                @foreach ($row['special_items'] as $item)
+                                    <div class="mt-1 text-[11px] text-ink/50">{{ $item['title'] }}: {{ $item['hours'] }}</div>
+                                @endforeach
+                            </td>
                             <td class="px-5 py-3.5 font-mono text-xs font-medium text-ink">{{ $row['total_hours'] }}</td>
                             <td class="px-5 py-3.5">@include('admin.overtime.partials.status-badge', ['status' => $row['status']])</td>
                         </tr>

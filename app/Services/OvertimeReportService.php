@@ -83,11 +83,14 @@ class OvertimeReportService
         $personnelIds = $this->scopedPersonnelQuery($unitId, $deputyId)->pluck('id');
 
         return OvertimePeriod::query()
-            ->with(['personnel.unit', 'personnel.deputy', 'personnel.position', 'personnel.contractType', 'specialItemLines'])
+            ->with(['personnel.unit', 'personnel.deputy', 'personnel.position', 'personnel.contractType', 'personnel.eligibleSpecialItems', 'specialItemLines'])
             ->where('jalali_year', $year)->where('jalali_month', $month)
             ->whereIn('personnel_id', $personnelIds)
             ->get()
-            ->map(fn (OvertimePeriod $period) => [
+            ->map(fn (OvertimePeriod $period) => (function () use ($period) {
+                $eligibleItems = $period->personnel->eligibleSpecialItems;
+                $specialHours = $eligibleItems->sum(fn ($item) => (float) $item->default_value);
+                return [
                 'personnel_id' => $period->personnel_id,
                 'personnel_name' => trim($period->personnel->name . ' ' . $period->personnel->family),
                 'unit' => $period->unitSnap?->title,
@@ -98,9 +101,11 @@ class OvertimeReportService
                 'status_label' => $period->status->label(),
                 'normal_hours' => (string) $period->normal_hours,
                 'excess_hours' => (string) $period->excess_hours,
-                'special_hours' => (string) $period->specialItemLines->sum('hours'),
-                'total_hours' => $period->totalHours(),
-            ])
+                'special_hours' => number_format($specialHours, 2, '.', ''),
+                'special_items' => $eligibleItems->map(fn ($item) => ['title' => $item->title, 'hours' => (string) $item->default_value])->values(),
+                'total_hours' => bcadd(bcadd((string) $period->normal_hours, (string) $period->excess_hours, 2), (string) $specialHours, 2),
+            ];
+            })())
             ->sortByDesc(fn ($row) => (float) $row['total_hours'])
             ->values();
     }

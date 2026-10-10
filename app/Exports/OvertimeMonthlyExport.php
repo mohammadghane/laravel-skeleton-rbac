@@ -41,7 +41,7 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
     public function collection(): Collection
     {
         return OvertimePeriod::with([
-            'personnel', 'unitSnap', 'deputySnap', 'positionSnap', 'contractTypeSnap', 'specialItemLines',
+            'personnel', 'personnel.eligibleSpecialItems', 'unitSnap', 'deputySnap', 'positionSnap', 'contractTypeSnap', 'specialItemLines',
         ])
             ->where('jalali_year', $this->jalaliYear)
             ->where('jalali_month', $this->jalaliMonth)
@@ -92,9 +92,7 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
         ];
 
         $specialItemValues = $this->specialItems->map(function (SpecialItem $item) use ($period) {
-            $line = $period->specialItemLines->firstWhere('special_item_id', $item->id);
-
-            return $line ? (string) $line->hours : '0';
+            return (string) ($period->personnel?->eligibleSpecialItems->firstWhere('id', $item->id)?->default_value ?? '0');
         })->all();
 
         return array_merge($fixed, $specialItemValues, [

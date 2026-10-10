@@ -25,24 +25,9 @@
     </div>
 
     <div>
-        <label class="{{ $label }}">{{ __('مسئول ثبت') }}</label>
-        <select name="submitter_role" required class="{{ $input }}">
-            <option value="hr" @selected(old('submitter_role', $item->submitter_role ?? 'hr') === 'hr')>{{ __('منابع انسانی — بدون نیاز به تایید') }}</option>
-            <option value="unit_manager" @selected(old('submitter_role', $item->submitter_role ?? '') === 'unit_manager')>{{ __('مدیر واحد — نیازمند تایید معاونت') }}</option>
-        </select>
-        <span class="mt-1 block text-xs text-ink/40">{{ __('آیتم‌های منابع انسانی مستقیماً اعمال می‌شوند، حتی روی دوره‌ی نهایی‌شده.') }}</span>
-    </div>
-
-    <div>
-        <label class="{{ $label }}">{{ __('مقدار پیش‌فرض (ساعت)') }}</label>
+        <label class="{{ $label }}">{{ __('مقدار ثابت برای هر پرسنل مشمول (ساعت)') }}</label>
         <input class="{{ $input }} font-mono" name="default_value" type="number" step="0.01" min="0" required value="{{ old('default_value', $item->default_value ?? '0') }}">
     </div>
-
-    <label class="flex items-center gap-2 text-sm text-ink/70">
-        <input type="checkbox" name="is_variable_per_personnel" value="1" @checked((bool) old('is_variable_per_personnel', $item->is_variable_per_personnel ?? true)) class="rounded border-line text-pine focus:ring-pine/20">
-        {{ __('مقدار به ازای هر پرسنل متفاوت است') }}
-    </label>
-    <span class="-mt-2 block text-xs text-ink/40">{{ __('اگر غیرفعال باشد، همان مقدار پیش‌فرض برای همه‌ی پرسنل واجد شرایط اعمال می‌شود.') }}</span>
 
     <label class="flex items-center gap-2 text-sm text-ink/70">
         <input type="checkbox" name="is_active" value="1" @checked((bool) old('is_active', $item->is_active ?? true)) class="rounded border-line text-pine focus:ring-pine/20">

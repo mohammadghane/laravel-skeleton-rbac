@@ -15,6 +15,8 @@
         @include('admin.overtime.partials.search-box', ['route' => 'admin.overtime.special-items.index', 'placeholder' => __('عنوان آیتم…')])
     </div>
 
+    <p class="mb-4 text-sm text-ink/60">{{ __('مقدار ثبت‌شده برای هر آیتم برای همه‌ی پرسنل مشمول آن یکسان است و توسط منابع انسانی تعیین می‌شود.') }}</p>
+
     <div x-data="bulkDelete(
         '{{ route('admin.overtime.special-items.bulk-destroy') }}',
         '{{ __('حذف :count آیتم انتخاب‌شده؟ آیتم‌هایی که برای پرسنلی تعریف شده‌اند حذف نمی‌شوند.') }}'

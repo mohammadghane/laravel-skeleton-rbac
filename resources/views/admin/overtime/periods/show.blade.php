@@ -9,6 +9,7 @@
         $card = 'rounded-2xl border border-line bg-white p-5 shadow-card';
 
         $status = $period?->status;
+        $specialHours = $period?->specialItemLines->sum('hours') ?? $specialItems->sum('default_value');
         $canManagerEdit = $isManager && $windowOpen && (!$period || $status->editableByManager());
         $canDeputyReview = $isDeputy && $period && $status->editableByDeputy();
         $canCeoReview = $isCeo && $period && $status->editableByCeo();
@@ -57,12 +58,12 @@
                     </div>
                     <div class="flex items-center justify-between">
                         <dt class="text-ink/60">{{ __('آیتم‌های ویژه') }}</dt>
-                        <dd class="font-mono text-ink">{{ number_format((float) ($period?->specialItemLines->sum('hours') ?? 0), 2) }}</dd>
+                        <dd class="font-mono text-ink">{{ number_format((float) $specialHours, 2) }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between border-t border-line pt-2.5">
                         <dt class="font-medium text-ink/70">{{ __('جمع کل (خام)') }}</dt>
-                        <dd class="font-mono font-medium text-ink">{{ $period?->totalHours() ?? '0.00' }}</dd>
+                        <dd class="font-mono font-medium text-ink">{{ $period?->totalHours() ?? number_format((float) $specialHours, 2, '.', '') }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between">
@@ -73,7 +74,7 @@
                     {{-- عدد نهایی ارسالی به واحد مالی --}}
                     <div class="flex items-center justify-between rounded-lg {{ $exceeds ? 'bg-brick-100' : 'bg-pine-100' }} px-3 py-2">
                         <dt class="font-medium {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ __('قابل پرداخت') }}</dt>
-                        <dd class="font-mono font-bold {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ $period?->payableHours() ?? '0.00' }}</dd>
+                        <dd class="font-mono font-bold {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ $period?->payableHours() ?? number_format((float) $specialHours, 2, '.', '') }}</dd>
                     </div>
                 </dl>
 
@@ -262,45 +263,21 @@
                         </table>
                     </div>
                 @else
-                    <p class="mb-4 text-sm text-ink/40">{{ __('آیتم ویژه‌ای ثبت نشده است.') }}</p>
+                    @if ($specialItems->isNotEmpty())
+                        <div class="mb-4 overflow-x-auto">
+                            <table class="w-full text-start text-sm"><thead><tr class="border-b border-line text-xs text-ink/50"><th class="px-3 py-2">{{ __('عنوان') }}</th><th class="px-3 py-2">{{ __('ساعت') }}</th><th class="px-3 py-2">{{ __('وضعیت تایید') }}</th></tr></thead>
+                                <tbody class="divide-y divide-line">@foreach ($specialItems as $item)<tr><td class="px-3 py-2">{{ $item->title }}</td><td class="px-3 py-2 font-mono">{{ $item->default_value }}</td><td class="px-3 py-2 text-xs text-pine">{{ __('تاییدشده') }}</td></tr>@endforeach</tbody>
+                            </table>
+                        </div>
+                    @else
+                        <p class="mb-4 text-sm text-ink/40">{{ __('آیتم ویژه‌ای ثبت نشده است.') }}</p>
+                    @endif
                 @endif
 
-                {{-- HR می‌تواند آیتم‌های خودش را حتی روی دوره‌ی نهایی‌شده اعمال کند؛
-                     مدیر واحد فقط آیتم‌های «مدیر واحد» را و فقط وقتی دوره در اختیار اوست. --}}
-                @php
-                    $assignableItems = $specialItems->filter(function ($item) use ($isHr, $canManagerEdit) {
-                        return $item->submitter_role === \App\Models\SpecialItem::SUBMITTER_HR
-                            ? $isHr
-                            : $canManagerEdit;
-                    });
-                @endphp
-
-                @if ($assignableItems->isNotEmpty())
-                    <form class="js-ajax-form flex flex-wrap items-end gap-3 border-t border-line pt-4" method="POST" id="special-item-form" data-callback="reloadPeriod">
-                        @csrf
-                        <input type="hidden" name="jalali_year" value="{{ $year }}">
-                        <input type="hidden" name="jalali_month" value="{{ $month }}">
-
-                        <div class="min-w-48 flex-1">
-                            <label class="{{ $label }}">{{ __('آیتم') }}</label>
-                            <select id="special-item-select" class="{{ $input }}">
-                                @foreach ($assignableItems as $item)
-                                    <option
-                                        value="{{ $item->id }}"
-                                        data-hr="{{ $item->submitter_role === \App\Models\SpecialItem::SUBMITTER_HR ? '1' : '0' }}"
-                                        data-default="{{ $item->default_value }}"
-                                    >{{ $item->title }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="w-32">
-                            <label class="{{ $label }}">{{ __('ساعت') }}</label>
-                            <input class="{{ $input }} font-mono" name="hours" type="number" step="0.01" min="0" required value="0">
-                        </div>
-
-                        <button type="submit" class="rounded-lg bg-pine px-4 py-2.5 text-sm font-medium text-white hover:bg-pine-600">{{ __('اعمال') }}</button>
-                    </form>
+                @if ($specialItems->isNotEmpty())
+                    <div class="border-t border-line pt-3 text-xs text-ink/60">
+                        {{ __('آیتم‌های مشمول این پرسنل با مقدار ثابت تعیین‌شده توسط منابع انسانی در بالا نمایش داده شده‌اند؛ مدیر و معاون امکان ویرایش مقدار را ندارند.') }}
+                    </div>
                 @endif
             </div>
 
@@ -337,31 +314,5 @@
 @push('scripts')
 <script>
     function reloadPeriod() { window.location.reload(); }
-
-    // آیتم ویژه: مسیر ارسال بسته به «مسئول ثبت» فرق می‌کند (HR مسیر مستقل خودش را دارد
-    // که نیازی به دوره‌ی از پیش موجود ندارد)، پس action را هنگام انتخاب آیتم می‌سازیم.
-    (function () {
-        const form = document.querySelector('#special-item-form');
-        const select = document.querySelector('#special-item-select');
-        if (!form || !select) return;
-
-        const hrTemplate = @json(route('admin.overtime.periods.special-items.apply-hr', ['personnel' => $personnel->id, 'specialItem' => '__ITEM__']));
-        const managerTemplate = @json($period ? route('admin.overtime.periods.special-items.apply', ['period' => $period->id, 'specialItem' => '__ITEM__']) : null);
-
-        function syncAction() {
-            const option = select.selectedOptions[0];
-            if (!option) return;
-
-            const isHr = option.dataset.hr === '1';
-            const template = isHr ? hrTemplate : managerTemplate;
-            if (template) form.action = template.replace('__ITEM__', option.value);
-
-            const hours = form.querySelector('[name="hours"]');
-            if (hours && Number(hours.value) === 0) hours.value = option.dataset.default || '0';
-        }
-
-        select.addEventListener('change', syncAction);
-        syncAction();
-    })();
 </script>
 @endpush
