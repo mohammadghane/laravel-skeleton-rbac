@@ -4,12 +4,12 @@ namespace App\Http\Requests\Admin\Overtime;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/** ثبت/ویرایش اضافه‌کار مازاد یک پرسنل توسط معاونت (بخشی از deputyReview). */
+/** ثبت/ویرایش مستقل اضافه‌کار مازاد توسط معاونت. */
 class OvertimeExcessRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // مالکیت داخل کنترلر چک می‌شود
+        return true; // مالکیت معاونت و وضعیت دوره در کنترلر بررسی می‌شود.
     }
 
     public function rules(): array

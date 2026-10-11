@@ -121,7 +121,7 @@
                 </div>
 
                 <p class="mt-2 text-xs text-ink/40">
-                    {{ __('بدون انتخاب ردیف، عدد برای همه‌ی پرسنل واحد ثبت می‌شود. سقف گروهی و پنجره‌ی زمانی ثبت، مانند ثبت تکی بررسی می‌شود.') }}
+                    {{ __('بدون انتخاب ردیف، عدد برای همه‌ی پرسنل در محدوده‌ی شما ثبت می‌شود. سقف گروهی و پنجره‌ی زمانی ثبت، مانند ثبت تکی بررسی می‌شود.') }}
                     <br>
                     {{ __('پس از ارسال به معاونت، امکان ویرایش آن دوره برای شما قفل می‌شود.') }}
                 </p>
@@ -149,11 +149,11 @@
                     </div>
                     <button type="button" @click="applyBulkExcess()" :disabled="busy || bulkExcessHours === ''" class="rounded-lg bg-pine px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
                         <template x-if="selected.length"><span>{{ __('ثبت برای') }} <span x-text="selected.length"></span> {{ __('نفر انتخاب‌شده') }}</span></template>
-                        <template x-if="!selected.length"><span>{{ __('ثبت برای همه‌ی دوره‌های قابل‌بررسی') }}</span></template>
+                        <template x-if="!selected.length"><span>{{ __('ثبت برای همه‌ی پیش‌نویس‌ها و دوره‌های در اختیار معاونت') }}</span></template>
                     </button>
                     <label class="flex items-center gap-2 text-xs text-ink/60"><input type="checkbox" x-model="overwriteExcess" class="rounded border-line text-pine">{{ __('بازنویسی مازاد ثبت‌شده‌ی قبلی') }}</label>
                 </div>
-                <p class="mt-2 text-xs text-ink/40">{{ __('با انتخاب ردیف‌ها، فقط همان افراد به‌روزرسانی می‌شوند. بدون انتخاب، مقدار برای همه‌ی دوره‌های قابل‌بررسی معاونت ثبت می‌شود؛ سقف سمت و ظرفیت معاونت کنترل می‌شود.') }}</p>
+                <p class="mt-2 text-xs text-ink/40">{{ __('با انتخاب ردیف‌ها، فقط همان افراد به‌روزرسانی می‌شوند. بدون انتخاب، مقدار برای همه‌ی پیش‌نویس‌ها و دوره‌های در اختیار معاونت ثبت می‌شود؛ سقف سمت و ظرفیت معاونت کنترل می‌شود.') }}</p>
             </div>
         @endif
 
@@ -392,7 +392,7 @@
             async applyBulkExcess() {
                 if (this.bulkExcessHours === '' || this.busy) return;
 
-                const scope = this.selected.length ? `${this.selected.length} نفر انتخاب‌شده` : 'همه‌ی دوره‌های قابل‌بررسی معاونت';
+                const scope = this.selected.length ? `${this.selected.length} نفر انتخاب‌شده` : 'همه‌ی پیش‌نویس‌ها و دوره‌های در اختیار معاونت';
                 if (!confirm(`ثبت ${this.bulkExcessHours} ساعت اضافه‌کار مازاد برای ${scope}؟`)) return;
 
                 this.busy = true;

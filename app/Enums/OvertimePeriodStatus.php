@@ -27,7 +27,7 @@ enum OvertimePeriodStatus: string
     {
         return match ($this) {
             self::Draft => __('پیش‌نویس'),
-            self::ManagerSubmitted => __('ثبت‌شده توسط مدیر'),
+            self::ManagerSubmitted => __('ارسال‌شده برای بررسی معاونت'),
             self::DeputyApproved => __('تایید معاونت'),
             self::DeputyRejected => __('رد شده توسط معاونت'),
             self::CeoApproved => __('تایید مدیرعامل'),
@@ -46,6 +46,12 @@ enum OvertimePeriodStatus: string
     public function editableByDeputy(): bool
     {
         return in_array($this, [self::ManagerSubmitted, self::CeoRejected], true);
+    }
+
+    /** معاون می‌تواند مازاد را پیش از ارسال عادی نیز در پیش‌نویس ثبت کند. */
+    public function allowsDeputyExcessEntry(): bool
+    {
+        return $this === self::Draft || $this->editableByDeputy();
     }
 
     /** آیا مدیرعامل در این وضعیت اجازه‌ی تایید/رد نهایی را دارد؟ */

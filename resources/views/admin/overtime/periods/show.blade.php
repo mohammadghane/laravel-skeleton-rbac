@@ -10,8 +10,9 @@
 
         $status = $period?->status;
         $specialHours = $period?->specialItemLines->sum('hours') ?? $specialItems->sum('default_value');
-        $canManagerEdit = $isManager && $windowOpen && (!$period || $status->editableByManager());
+        $canManagerEdit = ($isManager || $isDirectDeputy) && $windowOpen && (!$period || $status->editableByManager());
         $canDeputyReview = $isDeputy && $period && $status->editableByDeputy();
+        $canDeputyEditExcess = $isDeputy && $period && $status->allowsDeputyExcessEntry();
         $canCeoReview = $isCeo && $period && $status->editableByCeo();
         $exceeds = $period?->exceedsOverallCeiling() ?? false;
     @endphp
@@ -111,8 +112,8 @@
         {{-- ستون چپ: اقدام‌ها --}}
         <div class="space-y-4 lg:col-span-2">
 
-            {{-- مدیر واحد: ثبت اضافه‌کار عادی --}}
-            @if ($isManager)
+            {{-- مدیر واحد یا معاون برای پرسنل مستقیم: ثبت اضافه‌کار عادی --}}
+            @if ($isManager || $isDirectDeputy)
                 <div class="{{ $card }}">
                     <h3 class="mb-4 text-base font-semibold text-ink">{{ __('ثبت اضافه‌کار عادی') }}</h3>
 
@@ -139,6 +140,9 @@
                                 <p class="mb-3 text-xs text-ink/50">{{ __('پس از ارسال برای معاونت، امکان ویرایش برای شما قفل می‌شود.') }}</p>
                                 <button type="submit" class="rounded-lg border border-pine bg-pine-100 px-4 py-2.5 text-sm font-medium text-pine hover:bg-pine/10">{{ __('ارسال برای تایید معاونت') }}</button>
                             </form>
+                        @endif
+                        @if ($isDirectDeputy && $period && $period->status->value === 'manager_submitted')
+                            <p class="mt-3 text-xs text-ink/50">{{ __('ثبت عادی شما مستقیماً برای بررسی معاونت ارسال می‌شود.') }}</p>
                         @endif
                     @else
                         {{-- توضیح دقیقِ دلیل: پیام مبهم باعث می‌شد کاربر فکر کند صفحه فقط
@@ -184,19 +188,24 @@
             @endif
 
             {{-- معاونت: اضافه‌کار مازاد + تایید/رد --}}
-            @if ($canDeputyReview)
+            @if ($canDeputyReview || $canDeputyEditExcess)
                 <div class="{{ $card }}">
-                    <h3 class="mb-4 text-base font-semibold text-ink">{{ __('بررسی معاونت') }}</h3>
+                    <h3 class="mb-4 text-base font-semibold text-ink">{{ $canDeputyReview ? __('بررسی معاونت') : __('ثبت اضافه‌کار مازاد معاونت') }}</h3>
 
+                    <form class="js-ajax-form mb-4 space-y-3 border-b border-line pb-4" method="POST" action="{{ route('admin.overtime.periods.excess.store', $period) }}" data-callback="reloadPeriod">
+                        @csrf
+                        @method('PUT')
+                        <div>
+                            <label class="{{ $label }}">{{ __('ثبت اضافه‌کار مازاد') }}</label>
+                            <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="0.01" min="0" required value="{{ $period->excess_hours }}">
+                            <span class="mt-1 block text-xs text-ink/40">{{ __('می‌توانید مازاد را در پیش‌نویس یا پس از ارسال دوره ذخیره کنید؛ این کار به‌تنهایی دوره را تأیید نمی‌کند.') }}</span>
+                        </div>
+                        <button type="submit" class="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink/70 hover:bg-surface">{{ __('ذخیره‌ی مازاد بدون تأیید دوره') }}</button>
+                    </form>
+
+                    @if ($canDeputyReview)
                     <form class="js-ajax-form space-y-4" method="POST" action="{{ route('admin.overtime.periods.deputy-review', $period) }}" data-callback="reloadPeriod">
                         @csrf
-
-                        <div>
-                            <label class="{{ $label }}">{{ __('اضافه‌کار مازاد (اختیاری)') }}</label>
-                            <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="0.01" min="0" value="{{ $period->excess_hours }}">
-                            <span class="mt-1 block text-xs text-ink/40">{{ __('سقف مازاد بر اساس سمت سازمانی و در سطح کل معاونت کنترل می‌شود.') }}</span>
-                        </div>
-
                         <div>
                             <label class="{{ $label }}">{{ __('توضیح (اختیاری)') }}</label>
                             <input class="{{ $input }}" name="note" value="">
@@ -207,6 +216,7 @@
                             <button type="submit" name="decision" value="reject" class="rounded-lg border border-brick/30 bg-brick-100 px-4 py-2.5 text-sm font-medium text-brick hover:bg-brick/10">{{ __('رد و بازگشت به مدیر واحد') }}</button>
                         </div>
                     </form>
+                    @endif
                 </div>
             @endif
 

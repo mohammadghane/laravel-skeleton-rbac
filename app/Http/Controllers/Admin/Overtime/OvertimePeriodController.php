@@ -6,6 +6,7 @@ use App\Enums\OvertimePeriodStatus;
 use App\Exceptions\OvertimeCeilingExceededException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Overtime\OvertimeFinancialParamsRequest;
+use App\Http\Requests\Admin\Overtime\OvertimeExcessRequest;
 use App\Http\Requests\Admin\Overtime\OvertimeNormalRequest;
 use App\Http\Requests\Admin\Overtime\OvertimeReviewRequest;
 use App\Http\Requests\Admin\Overtime\OvertimeSpecialItemLineRequest;
@@ -189,6 +190,7 @@ class OvertimePeriodController extends Controller
             'windowOpen' => (bool) $ceilingVersion?->isRegistrationWindowOpen(),
             'isManager' => $personnel->unit && $personnel->unit->manager_user_id === $user->id,
             'isDeputy' => $this->deputyOwns($user, $personnel),
+            'isDirectDeputy' => !$personnel->unit_id && $this->deputyOwns($user, $personnel),
             'isCeo' => $user->hasPermission('overtime/ceo-approve'),
             'isHr' => $user->hasPermission('overtime/hr-manage'),
         ]);
@@ -250,6 +252,8 @@ class OvertimePeriodController extends Controller
         // اسنپ‌شات سقف عادی از «سمت سازمانی» گرفته می‌شود، نه نوع قرارداد.
         $period->normal_ceiling_snapshot = optional($personnel->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
         $period->save();
+
+        $this->submitDeputyEnteredNormal($manager, $personnel, $period);
 
         // ستون‌های محاسباتی از سمت سرور برمی‌گردند تا ویرایش درون‌خطیِ جدول مجبور
         // نباشد منطق سقف را در جاوااسکریپت بازنویسی کند (محاسبات bcmath است).
@@ -350,6 +354,7 @@ class OvertimePeriodController extends Controller
                 $period->normal_hours = $hours;
                 $period->normal_ceiling_snapshot = optional($person->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
                 $period->save();
+                $this->submitDeputyEnteredNormal($manager, $person, $period);
                 $period->load('specialItemLines');
 
                 $rows[$person->id] = [
@@ -436,7 +441,7 @@ class OvertimePeriodController extends Controller
             $person = $period->personnel;
             $label = trim($person->name . ' ' . $person->family);
 
-            if (!$period->status->editableByDeputy()) {
+            if (!$period->status->allowsDeputyExcessEntry()) {
                 if ($selectedIds->isNotEmpty()) {
                     $skipped[] = $label . ' — ' . $period->status->label();
                 }
@@ -482,6 +487,40 @@ class OvertimePeriodController extends Controller
             'applied' => $applied,
             'skipped' => $skipped,
             'rows' => $rows,
+        ]);
+    }
+
+    /** ذخیره‌ی مستقل مازاد؛ دوره در انتظار بررسی معاونت باقی می‌ماند. */
+    public function storeExcess(OvertimeExcessRequest $request, OvertimePeriod $period): JsonResponse
+    {
+        $deputy = $request->user();
+        $this->assertDeputyOwnsPersonnel($deputy, $period->personnel);
+        abort_unless($period->status->allowsDeputyExcessEntry(), 422, __('ثبت اضافه‌کار مازاد فقط در وضعیت پیش‌نویس یا وضعیت‌های در اختیار معاونت امکان‌پذیر است.'));
+
+        try {
+            $this->ceilingService->assertExcessWithinCeiling(
+                $period->personnel, $period->jalali_year, $period->jalali_month,
+                (string) $request->input('excess_hours'), excludePeriodId: $period->id
+            );
+        } catch (OvertimeCeilingExceededException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        $period->excess_hours = $request->input('excess_hours');
+        $period->excess_ceiling_snapshot = optional($period->personnel->position?->ceilingFor($period->jalali_year, $period->jalali_month))->ceiling_per_person;
+        $period->save();
+        $period->load('specialItemLines');
+
+        return response()->json([
+            'success' => true,
+            'message' => __('اضافه‌کار مازاد ثبت شد؛ دوره همچنان برای بررسی معاونت باز است.'),
+            'data' => $period,
+            'computed' => [
+                'total' => $period->totalHours(),
+                'payable' => $period->payableHours(),
+                'capped' => $period->cappedHours(),
+                'exceeds' => $period->exceedsOverallCeiling(),
+            ],
         ]);
     }
 
@@ -706,6 +745,23 @@ class OvertimePeriodController extends Controller
         $period->update($request->only(['rial_coefficient', 'worked_days_count']));
 
         return response()->json(['success' => true, 'message' => __('پارامترهای مالی ثبت شد.'), 'data' => $period]);
+    }
+
+    /** A deputy who enters normal hours for their personnel submits them into deputy review. */
+    private function submitDeputyEnteredNormal(User $actor, User $personnel, OvertimePeriod $period): void
+    {
+        if (!$this->deputyOwns($actor, $personnel) || !$period->status->editableByManager()) {
+            return;
+        }
+
+        $period->submitted_by = $actor->id;
+        $period->manager_locked_at = now();
+        $period->save();
+        $period->transitionTo(
+            OvertimePeriodStatus::ManagerSubmitted,
+            $actor->id,
+            __('ثبت عادی توسط معاونت و ارسال مستقیم برای بررسی مازاد')
+        );
     }
 
     private function assertManagerOwnsPersonnel(User $manager, User $personnel): \App\Models\Unit
