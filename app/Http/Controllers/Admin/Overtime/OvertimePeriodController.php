@@ -209,7 +209,6 @@ class OvertimePeriodController extends Controller
             'windowOpen' => (bool) $ceilingVersion?->isRegistrationWindowOpen(),
             'isManager' => $personnel->unit && $personnel->unit->manager_user_id === $user->id,
             'isDeputy' => $this->deputyOwns($user, $personnel),
-            'isDirectDeputy' => !$personnel->unit_id && $this->deputyOwns($user, $personnel),
             'isCeo' => $user->hasPermission('overtime/ceo-approve'),
             'isHr' => $user->hasPermission('overtime/hr-manage'),
         ]);
@@ -256,7 +255,7 @@ class OvertimePeriodController extends Controller
 
         $period = $this->periodService->findOrCreateDraft($personnel, $year, $month);
 
-        abort_if(!$period->status->editableByManager(), 422, __('این دوره در وضعیت فعلی توسط شما قابل ویرایش نیست.'));
+        abort_unless($this->canEditNormalFor($manager, $personnel, $period), 422, __('این دوره در وضعیت فعلی توسط شما قابل ویرایش نیست.'));
 
         try {
             $this->ceilingService->assertNormalWithinCeiling(
@@ -287,7 +286,7 @@ class OvertimePeriodController extends Controller
                 'exceeds' => $period->exceedsOverallCeiling(),
                 'status' => $period->status->value,
                 'status_label' => $period->status->label(),
-                'editable' => $period->status->editableByManager(),
+                'editable' => $this->canEditNormalFor($manager, $personnel, $period),
             ],
         ]);
     }
@@ -353,7 +352,7 @@ class OvertimePeriodController extends Controller
 
                 $period = $this->periodService->findOrCreateDraft($person, $year, $month);
 
-                if (!$period->status->editableByManager()) {
+                if (!$this->canEditNormalFor($manager, $person, $period)) {
                     $skipped[] = $label . ' — ' . $period->status->label();
                     continue;
                 }
@@ -381,7 +380,7 @@ class OvertimePeriodController extends Controller
                     'exceeds' => $period->exceedsOverallCeiling(),
                     'status' => $period->status->value,
                     'status_label' => $period->status->label(),
-                    'editable' => $period->status->editableByManager(),
+                    'editable' => $this->canEditNormalFor($manager, $person, $period),
                 ];
 
                 $applied++;
@@ -685,6 +684,16 @@ class OvertimePeriodController extends Controller
         }
 
         return $this->deputyOwns($actor, $personnel);
+    }
+
+    /** مدیر در وضعیت‌های خودش و معاون در پیش‌نویس/دوره‌های در اختیار معاون می‌تواند عادی را ویرایش کند. */
+    private function canEditNormalFor(User $actor, User $personnel, OvertimePeriod $period): bool
+    {
+        if ($period->status->editableByManager() && $this->canRegisterNormalFor($actor, $personnel)) {
+            return true;
+        }
+
+        return $this->deputyOwns($actor, $personnel) && $period->status->allowsDeputyExcessEntry();
     }
 
     /**

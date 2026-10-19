@@ -182,8 +182,10 @@
                                 $period = $periods->get($person->id);
                                 $specialHours = $period?->specialItemLines->where('unit_snap', 'hour')->sum('hours') ?? 0;
                                 $exceeds = $period?->exceedsOverallCeiling() ?? false;
-                                // ویرایش درون‌خطی فقط تا وقتی باز است که دوره هنوز به معاونت نرفته باشد.
-                                $rowEditable = $canEditInline && (!$period || $period->status->editableByManager());
+                                // معاون برای دوره‌های زیرمجموعه‌ی خودش در وضعیت‌های در اختیار معاون نیز عادی را ویرایش می‌کند.
+                                $rowEditable = $canEditInline && (!$period
+                                    || $period->status->editableByManager()
+                                    || ($role === 'deputy' && $deputyPersonnelIds->contains($person->id) && $period->status->allowsDeputyExcessEntry()));
                                 $rowSelectable = $rowEditable || ($role === 'deputy' && $period && $period->status->editableByDeputy());
                             @endphp
                             <tr class="hover:bg-surface/60" data-row="{{ $person->id }}" x-data="{ saving: false, saved: false, error: '' }">
@@ -580,7 +582,7 @@
              * در رندر اولیه وجود نداشت چون هنوز دوره‌ای نبود.
              */
             ensureSubmitButton(id, row) {
-                if (!row || row.editable === false) return;
+                if (!row || row.editable === false || !['draft', 'deputy_rejected'].includes(row.status)) return;
 
                 const cell = document.querySelector(`[data-cell="actions-${id}"] div`);
                 if (!cell || cell.querySelector('button')) return;

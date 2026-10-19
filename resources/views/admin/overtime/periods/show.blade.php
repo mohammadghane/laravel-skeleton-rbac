@@ -10,7 +10,8 @@
 
         $status = $period?->status;
         $specialHours = $period?->specialItemLines->where('unit_snap', 'hour')->sum('hours') ?? $specialItems->where('unit', 'hour')->sum('default_value');
-        $canManagerEdit = ($isManager || $isDirectDeputy) && $windowOpen && (!$period || $status->editableByManager());
+        $normalStatusEditable = !$period || $status->editableByManager() || ($isDeputy && $status->allowsDeputyExcessEntry());
+        $canManagerEdit = ($isManager || $isDeputy) && $windowOpen && $normalStatusEditable;
         $canDeputyReview = $isDeputy && $period && $status->editableByDeputy();
         $canDeputyEditExcess = $isDeputy && $period && $status->allowsDeputyExcessEntry();
         $canCeoReview = $isCeo && $period && $status->editableByCeo();
@@ -112,8 +113,8 @@
         {{-- ستون چپ: اقدام‌ها --}}
         <div class="space-y-4 lg:col-span-2">
 
-            {{-- مدیر واحد یا معاون برای پرسنل مستقیم: ثبت اضافه‌کار عادی --}}
-            @if ($isManager || $isDirectDeputy)
+            {{-- مدیر واحد و معاونت هر دو می‌توانند برای پرسنل زیرمجموعه ثبت عادی کنند. --}}
+            @if ($isManager || $isDeputy)
                 <div class="{{ $card }}">
                     <h3 class="mb-4 text-base font-semibold text-ink">{{ __('ثبت اضافه‌کار عادی') }}</h3>
 
@@ -151,7 +152,7 @@
                                 {{ __('پنجره‌ی ثبت اضافه‌کار برای این ماه باز نیست.') }}
                                 <span class="font-mono">({{ __('روز فعال‌سازی') }}: {{ $ceilingVersion->activation_day }})</span>
                             @else
-                                {{ __('این دوره در وضعیت «:status» است و دیگر توسط مدیر واحد قابل ویرایش نیست.', ['status' => $period?->status->label()]) }}
+                                {{ __('این دوره در وضعیت «:status» است و برای ثبت اضافه‌کار عادی قابل ویرایش نیست.', ['status' => $period?->status->label()]) }}
                             @endif
                         </div>
                     @endif
