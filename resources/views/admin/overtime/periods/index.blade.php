@@ -287,6 +287,16 @@
 
                                 <td class="px-5 py-3.5" data-cell="actions-{{ $person->id }}">
                                     <div class="flex justify-end gap-2">
+                                        @if ($role === 'deputy' && $period && $period->status->editableByDeputy())
+                                            <button
+                                                type="button"
+                                                @click="sendToCeo('{{ route('admin.overtime.periods.deputy-review', $period) }}')"
+                                                :disabled="busy"
+                                                class="rounded-lg border border-pine bg-pine-100 px-3 py-1.5 text-xs font-medium text-pine hover:bg-pine/10 disabled:opacity-60"
+                                            >
+                                                {{ __('ارسال به مدیرعامل') }}
+                                            </button>
+                                        @endif
                                         {{-- ارسال تکی: فقط وقتی دوره‌ای وجود دارد که هنوز دست مدیر است. --}}
                                         @if ($canEditInline && $period && $period->status->editableByManager())
                                             <button
@@ -454,6 +464,37 @@
                     // غیرقابل‌ذخیره روی صفحه می‌ماند - بدترین حالت ممکن.
                     this.applyRows(data.rows ?? {});
                     this.clearSelection();
+                } catch (error) {
+                    this.toast('ارتباط با سرور برقرار نشد.');
+                } finally {
+                    this.busy = false;
+                }
+            },
+
+            async sendToCeo(url) {
+                if (this.busy || !confirm('این دوره برای بررسی مدیرعامل ارسال شود؟')) return;
+
+                this.busy = true;
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ decision: 'approve' }),
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        this.toast(data.message ?? 'ارسال برای مدیرعامل انجام نشد.');
+                        return;
+                    }
+
+                    this.toast(data.message, 'success');
+                    window.location.reload();
                 } catch (error) {
                     this.toast('ارتباط با سرور برقرار نشد.');
                 } finally {

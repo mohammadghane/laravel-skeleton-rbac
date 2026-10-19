@@ -28,7 +28,7 @@ enum OvertimePeriodStatus: string
         return match ($this) {
             self::Draft => __('پیش‌نویس'),
             self::ManagerSubmitted => __('ارسال‌شده برای بررسی معاونت'),
-            self::DeputyApproved => __('تایید معاونت'),
+            self::DeputyApproved => __('ارسال‌شده برای بررسی مدیرعامل'),
             self::DeputyRejected => __('رد شده توسط معاونت'),
             self::CeoApproved => __('تایید مدیرعامل'),
             self::CeoRejected => __('رد شده توسط مدیرعامل'),

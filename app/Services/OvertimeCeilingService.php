@@ -22,9 +22,9 @@ use App\Models\User;
  *    (کارشناس ۹۰، رئیس گروه ۱۱۰، مدیر واحد ۱۲۰، …) و سقف گروه برابر است با
  *    «تعداد پرسنل × عدد مشخص شده بر اساس سمت».
  *
- *  - اضافه‌کار مازاد (در اختیار معاونت) - بر اساس سمت سازمانی، در دو سطح:
- *      ۱) سقف همان سمت در آن معاونت
- * ۲) ظرفیت کل معاونت، پس از اعمال واگذاری‌های بین معاونت‌ها
+ *  - اضافه‌کار مازاد (در اختیار معاونت) - فقط بر اساس ظرفیت کل معاونت،
+ *    پس از اعمال واگذاری‌های بین معاونت‌ها. سقف پایه از جمع ظرفیت سمت‌ها محاسبه می‌شود؛
+ *    اما هنگام تخصیص، محدودیت جداگانه‌ای برای هر سمت وجود ندارد.
  *
  * محدودیت در سطح فرد اعمال نمی‌شود - یک پرسنل می‌تواند بیشتر یا کمتر از سهم میانگین خود
  * داشته باشد، فقط مجموعِ محدوده نباید از سقف تجاوز کند.
@@ -84,19 +84,12 @@ class OvertimeCeilingService
     }
 
     /**
-     * پیش از ثبت/ویرایش اضافه‌کار مازاد یک پرسنل، سقف کل معاونت (بر اساس سمت سازمانی) را چک می‌کند.
+     * پیش از ثبت/ویرایش اضافه‌کار مازاد یک پرسنل، ظرفیت کل معاونت را چک می‌کند.
      *
      * @throws OvertimeCeilingExceededException
      */
     public function assertExcessWithinCeiling(User $personnel, int $jalaliYear, int $jalaliMonth, string $newHours, ?int $excludePeriodId = null): void
     {
-        if (!$personnel->position_id) {
-            throw new OvertimeCeilingExceededException(
-                __('این پرسنل سمت سازمانی ندارد و امکان ثبت اضافه‌کار مازاد برای او وجود ندارد.'),
-                scopeLabel: '-', ceiling: '0', used: '0', attempted: $newHours,
-            );
-        }
-
         $deputyId = $personnel->effectiveDeputyId();
         if (!$deputyId) {
             throw new OvertimeCeilingExceededException(
@@ -105,50 +98,8 @@ class OvertimeCeilingService
             );
         }
 
-        $position = Position::findOrFail($personnel->position_id);
-        $ceilingVersion = $position->ceilingFor($jalaliYear, $jalaliMonth);
-
-        if (!$ceilingVersion) {
-            throw new OvertimeCeilingExceededException(
-                __('برای این سمت سازمانی در این ماه، سقف مازادی تعریف نشده است.'),
-                scopeLabel: $position->title, ceiling: '0', used: '0', attempted: $newHours,
-            );
-        }
-
         $deputy = Deputy::findOrFail($deputyId);
-
-        // سطح ۱: سقف همان سمت در این معاونت (تعداد پرسنل آن سمت × سقف مازاد هر نفر).
-        //
-        // نکته: ظرفیتِ دریافتی از معاونت‌های دیگر به‌صورت «سرریز» به این سقف
-        // اضافه می‌شود، وگرنه ظرفیت واگذارشده هرگز قابل استفاده نبود و کل قابلیت واگذاری
-        // بی‌اثر می‌شد. کنترل واقعیِ سوءاستفاده در سطح ۲ (ظرفیت کل معاونت) انجام می‌شود.
-        $positionCeiling = bcmul(
-            (string) $this->deputyHeadcountByPosition($deputyId, $position->id),
-            (string) $ceilingVersion->ceiling_per_person,
-            2
-        );
-
-        $received = DeputyCapacityTransfer::receivedBy($deputyId, $jalaliYear, $jalaliMonth);
-        $positionCeilingWithHeadroom = bcadd($positionCeiling, $received, 2);
-
-        $positionUsed = $this->sumExcessHours($jalaliYear, $jalaliMonth, $position->id, $deputyId, excludePeriodId: $excludePeriodId);
-
-        if (bccomp(bcadd($positionUsed, $newHours, 2), $positionCeilingWithHeadroom, 2) === 1) {
-            throw new OvertimeCeilingExceededException(
-                __('سقف مجاز :scope تجاوز می‌کند: سقف کل :ceiling ساعت، مصرف‌شده تاکنون :used ساعت، مقدار درخواستی :attempted ساعت.', [
-                    'scope' => __('معاونت') . ' «' . $deputy->title . '» - ' . __('مازاد') . ' ' . $position->title,
-                    'ceiling' => $positionCeilingWithHeadroom,
-                    'used' => $positionUsed,
-                    'attempted' => $newHours,
-                ]),
-                scopeLabel: __('معاونت') . ' «' . $deputy->title . '» - ' . __('مازاد') . ' ' . $position->title,
-                ceiling: $positionCeilingWithHeadroom,
-                used: $positionUsed,
-                attempted: $newHours,
-            );
-        }
-
-        // سطح ۲: ظرفیت کل معاونت پس از واگذاری‌ها.
+        // ظرفیت کل معاونت پس از واگذاری‌ها؛ ظرفیت هر سمت فقط در محاسبه‌ی پایه مؤثر است.
         // اگر معاونتی بخشی از ظرفیتش را واگذار کرده باشد، دیگر نمی‌تواند از آن استفاده کند؛
         // و معاونتِ گیرنده می‌تواند بیش از سقف پایه‌ی خودش مصرف کند.
         $this->assertDeputyTotalExcessCapacity($deputy, $jalaliYear, $jalaliMonth, $newHours, $excludePeriodId);
