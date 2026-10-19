@@ -26,10 +26,10 @@
     <div
         x-data="overtimeEntry({
             bulkUrl: '{{ route('admin.overtime.periods.bulk-normal') }}',
-            bulkExcessUrl: '{{ route('admin.overtime.periods.bulk-excess') }}',
             submitUrl: '{{ route('admin.overtime.periods.bulk-submit') }}',
             year: {{ $year }},
             month: {{ $month }},
+            role: '{{ $role }}',
         })"
     >
         <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -62,7 +62,7 @@
                             </label>
                             <input
                                 id="bulk-hours"
-                                type="number" step="0.25" min="0"
+                                type="number" step="1" min="0"
                                 x-model="bulkHours"
                                 @keydown.enter.prevent="applyBulk()"
                                 placeholder="{{ __('مثلاً ۶۰') }}"
@@ -94,7 +94,7 @@
                     </div>
 
                     <div class="flex items-center gap-3">
-                        {{-- ارسال به معاونت. پس از ارسال، ویرایش برای مدیر قفل می‌شود. --}}
+                        {{-- متن مقصد ارسال متناسب با نقش کاربر تغییر می‌کند. --}}
                         <button
                             type="button"
                             @click="submitToDeputy()"
@@ -103,10 +103,10 @@
                         >
                             <span x-show="!busy">
                                 <template x-if="selected.length">
-                                    <span>{{ __('ارسال') }} <span x-text="selected.length"></span> {{ __('مورد به معاونت') }}</span>
+                                    <span>{{ __('ارسال') }} <span x-text="selected.length"></span> {{ $role === 'deputy' ? __('مورد به مدیرعامل') : __('مورد به معاونت') }}</span>
                                 </template>
                                 <template x-if="!selected.length">
-                                    <span>{{ __('ارسال همه به معاونت') }}</span>
+                                    <span>{{ $role === 'deputy' ? __('ارسال همه به مدیرعامل') : __('ارسال همه به معاونت') }}</span>
                                 </template>
                             </span>
                             <span x-show="busy">{{ __('در حال ارسال…') }}</span>
@@ -140,20 +140,17 @@
             </div>
         @endif
 
-        @if ($role === 'deputy')
-            <div class="mb-4 rounded-2xl border border-line bg-white p-4 shadow-card">
-                <div class="flex flex-wrap items-end gap-3">
-                    <div>
-                        <label class="mb-1.5 block text-xs font-medium text-ink/60" for="bulk-excess-hours">{{ __('اضافه‌کار مازاد گروهی (ساعت)') }}</label>
-                        <input id="bulk-excess-hours" type="number" step="0.25" min="0" x-model="bulkExcessHours" placeholder="{{ __('مثلاً ۵') }}" class="w-40 rounded-lg border border-line px-3 py-2 font-mono text-sm focus:border-pine focus:outline-none">
-                    </div>
-                    <button type="button" @click="applyBulkExcess()" :disabled="busy || bulkExcessHours === ''" class="rounded-lg bg-pine px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-                        <template x-if="selected.length"><span>{{ __('ثبت برای') }} <span x-text="selected.length"></span> {{ __('نفر انتخاب‌شده') }}</span></template>
-                        <template x-if="!selected.length"><span>{{ __('ثبت برای همه‌ی پیش‌نویس‌ها و دوره‌های در اختیار معاونت') }}</span></template>
-                    </button>
-                    <label class="flex items-center gap-2 text-xs text-ink/60"><input type="checkbox" x-model="overwriteExcess" class="rounded border-line text-pine">{{ __('بازنویسی مازاد ثبت‌شده‌ی قبلی') }}</label>
+        @if ($role === 'deputy' && $deputyCapacitySummary)
+            <div class="mb-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl border border-line bg-white p-4 shadow-card">
+                    <p class="text-xs text-ink/50">{{ __('جمع کل ظرفیت اضافه‌کار مازاد (پایه و خالص واگذاری)') }}</p>
+                    <p id="deputy-excess-capacity" class="mt-2 font-mono text-2xl font-semibold text-pine">{{ number_format((int) $deputyCapacitySummary['total_capacity']) }}</p>
                 </div>
-                <p class="mt-2 text-xs text-ink/40">{{ __('با انتخاب ردیف‌ها، فقط همان افراد به‌روزرسانی می‌شوند. بدون انتخاب، مقدار برای همه‌ی پیش‌نویس‌ها و دوره‌های در اختیار معاونت ثبت می‌شود؛ سقف سمت و ظرفیت معاونت کنترل می‌شود.') }}</p>
+                <div class="rounded-2xl border border-line bg-white p-4 shadow-card">
+                    <p class="text-xs text-ink/50">{{ __('مجموع اضافه‌کار مازاد اختصاص‌یافته') }}</p>
+                    <p id="deputy-excess-assigned" class="mt-2 font-mono text-2xl font-semibold text-ink">{{ number_format((int) $deputyCapacitySummary['assigned_hours']) }}</p>
+                    <p class="mt-1 text-xs text-ink/50">{{ __('باقی‌مانده ظرفیت') }}: <span id="deputy-excess-remaining" class="font-mono font-medium text-pine">{{ number_format((int) $deputyCapacitySummary['remaining_capacity']) }}</span> {{ __('ساعت') }}</p>
+                </div>
             </div>
         @endif
 
@@ -183,7 +180,7 @@
                         @forelse ($personnel as $person)
                             @php
                                 $period = $periods->get($person->id);
-                                $specialHours = $period?->specialItemLines->sum('hours') ?? 0;
+                                $specialHours = $period?->specialItemLines->where('unit_snap', 'hour')->sum('hours') ?? 0;
                                 $exceeds = $period?->exceedsOverallCeiling() ?? false;
                                 // ویرایش درون‌خطی فقط تا وقتی باز است که دوره هنوز به معاونت نرفته باشد.
                                 $rowEditable = $canEditInline && (!$period || $period->status->editableByManager());
@@ -222,7 +219,7 @@
                                     @if ($rowEditable)
                                         <div class="flex items-center gap-1.5">
                                             <input
-                                                type="number" step="0.25" min="0"
+                                                type="number" step="1" min="0"
                                                 value="{{ $period?->normal_hours }}"
                                                 data-personnel="{{ $person->id }}"
                                                 @keydown.enter.prevent="$el.blur()"
@@ -240,8 +237,28 @@
                                     @endif
                                 </td>
 
-                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70" data-cell="excess-{{ $person->id }}">{{ $period?->excess_hours ?? '—' }}</td>
-                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $period ? number_format((float) $specialHours, 2) : '—' }}</td>
+                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70" data-cell="excess-{{ $person->id }}">
+                                    @if ($role === 'deputy' && $period && $deputyPersonnelIds->contains($person->id) && $period->status->allowsDeputyExcessEntry())
+                                        <div class="flex items-center gap-1.5">
+                                            <input
+                                                type="number" step="1" min="0"
+                                                value="{{ $period->excess_hours }}"
+                                                data-excess-url="{{ route('admin.overtime.periods.excess.store', $period) }}"
+                                                @keydown.enter.prevent="$el.blur()"
+                                                @change="saveExcessRow($el, { saving: v => saving = v, ok: () => { saved = true; error = ''; setTimeout(() => saved = false, 2000) }, fail: m => { error = m; saved = false } })"
+                                                :disabled="saving"
+                                                class="w-20 rounded-lg border border-line px-2 py-1 font-mono text-xs focus:border-pine focus:outline-none disabled:opacity-50"
+                                                :class="error ? 'border-brick' : (saved ? 'border-pine' : '')"
+                                            >
+                                            <span x-show="saving" class="text-xs text-ink/40">…</span>
+                                            <span x-show="saved" x-cloak class="text-xs text-pine">✓</span>
+                                            <p x-show="error" x-cloak x-text="error" class="mt-1 text-[11px] text-brick"></p>
+                                        </div>
+                                    @else
+                                        {{ $period?->excess_hours ?? '—' }}
+                                    @endif
+                                </td>
+                                <td class="px-5 py-3.5 font-mono text-xs text-ink/70">{{ $period ? number_format((int) $specialHours) : '—' }}</td>
 
                                 <td class="px-5 py-3.5 font-mono text-xs font-medium text-ink" data-cell="total-{{ $person->id }}">{{ $period?->totalHours() ?? '—' }}</td>
 
@@ -276,7 +293,7 @@
                                                 :disabled="busy"
                                                 class="rounded-lg border border-pine bg-pine-100 px-3 py-1.5 text-xs font-medium text-pine hover:bg-pine/10 disabled:opacity-60"
                                             >
-                                                {{ __('ارسال به معاونت') }}
+                                                {{ $role === 'deputy' ? __('ارسال به مدیرعامل') : __('ارسال به معاونت') }}
                                             </button>
                                         @endif
 
@@ -310,9 +327,7 @@
     function overtimeEntry(config) {
         return {
             bulkHours: '',
-            bulkExcessHours: '',
             overwrite: false,
-            overwriteExcess: false,
             busy: false,
             selected: [],
             skipped: [],
@@ -380,47 +395,6 @@
                     // سطرهای موفق بلافاصله به‌روز می‌شوند، چه عملیات کامل موفق باشد
                     // چه جزئی. پیش‌تر در حالت جزئی هیچ به‌روزرسانی‌ای انجام نمی‌شد و
                     // کاربر تا رفرش دستی، اعداد قدیمی را می‌دید.
-                    this.applyRows(data.rows ?? {});
-                    this.clearSelection();
-                } catch (error) {
-                    this.toast('ارتباط با سرور برقرار نشد.');
-                } finally {
-                    this.busy = false;
-                }
-            },
-
-            async applyBulkExcess() {
-                if (this.bulkExcessHours === '' || this.busy) return;
-
-                const scope = this.selected.length ? `${this.selected.length} نفر انتخاب‌شده` : 'همه‌ی پیش‌نویس‌ها و دوره‌های در اختیار معاونت';
-                if (!confirm(`ثبت ${this.bulkExcessHours} ساعت اضافه‌کار مازاد برای ${scope}؟`)) return;
-
-                this.busy = true;
-                this.skipped = [];
-                try {
-                    const response = await fetch(config.bulkExcessUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': this.csrf(),
-                            'X-Requested-With': 'XMLHttpRequest',
-                        },
-                        body: JSON.stringify({
-                            excess_hours: this.bulkExcessHours,
-                            jalali_year: config.year,
-                            jalali_month: config.month,
-                            personnel_ids: this.selected,
-                            overwrite: this.overwriteExcess,
-                        }),
-                    });
-                    const data = await response.json();
-                    if (!response.ok) {
-                        this.toast(data.message ?? 'خطا در ثبت گروهی اضافه‌کار مازاد.');
-                        return;
-                    }
-                    this.skipped = data.skipped ?? [];
-                    this.toast(data.message, data.applied > 0 ? 'success' : 'error');
                     this.applyRows(data.rows ?? {});
                     this.clearSelection();
                 } catch (error) {
@@ -530,6 +504,51 @@
                 }
             },
 
+            async saveExcessRow(input, hooks) {
+                const id = input.closest('tr')?.dataset.row;
+                const value = input.value;
+                if (value === '' || !id) return;
+
+                hooks.saving(true);
+                try {
+                    const response = await fetch(input.dataset.excessUrl, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ excess_hours: value }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        hooks.fail(data.message ?? 'ثبت اضافه‌کار مازاد انجام نشد.');
+                        return;
+                    }
+
+                    hooks.ok();
+                    this.refreshRow(id, data.computed);
+                    this.refreshDeputyCapacity(data.capacity_summary);
+                    this.toast(data.message ?? 'اضافه‌کار مازاد ثبت شد.', 'success');
+                } catch (error) {
+                    hooks.fail('ارتباط با سرور برقرار نشد.');
+                } finally {
+                    hooks.saving(false);
+                }
+            },
+
+            refreshDeputyCapacity(summary) {
+                if (!summary) return;
+
+                const total = document.getElementById('deputy-excess-capacity');
+                const assigned = document.getElementById('deputy-excess-assigned');
+                const remaining = document.getElementById('deputy-excess-remaining');
+                if (total) total.textContent = Number(summary.total_capacity).toLocaleString('en-US');
+                if (assigned) assigned.textContent = Number(summary.assigned_hours).toLocaleString('en-US');
+                if (remaining) remaining.textContent = Number(summary.remaining_capacity).toLocaleString('en-US');
+            },
+
             /**
              * نتیجه‌ی یک عملیات گروهی را روی سطرهای مربوطه اعمال می‌کند.
              *
@@ -569,7 +588,7 @@
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'rounded-lg border border-pine bg-pine-100 px-3 py-1.5 text-xs font-medium text-pine hover:bg-pine/10 disabled:opacity-60';
-                button.textContent = 'ارسال به معاونت';
+                button.textContent = config.role === 'deputy' ? 'ارسال به مدیرعامل' : 'ارسال به معاونت';
                 button.addEventListener('click', () => this.submitToDeputy([Number(id)]));
 
                 cell.prepend(button);

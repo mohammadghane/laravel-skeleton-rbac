@@ -25,8 +25,16 @@
     </div>
 
     <div>
-        <label class="{{ $label }}">{{ __('مقدار ثابت برای هر پرسنل مشمول (ساعت)') }}</label>
-        <input class="{{ $input }} font-mono" name="default_value" type="number" step="0.01" min="0" required value="{{ old('default_value', $item->default_value ?? '0') }}">
+        <label class="{{ $label }}">{{ __('مقدار ثابت برای هر پرسنل مشمول') }}</label>
+        <input class="{{ $input }} font-mono" name="default_value" type="number" step="1" min="0" required value="{{ old('default_value', $item->default_value ?? '0') }}">
+    </div>
+
+    <div>
+        <label class="{{ $label }}">{{ __('واحد آیتم') }}</label>
+        <select class="{{ $input }}" name="unit" required>
+            <option value="hour" @selected(old('unit', $item->unit ?? 'hour') === 'hour')>{{ __('ساعت') }}</option>
+            <option value="day" @selected(old('unit', $item->unit ?? 'hour') === 'day')>{{ __('روز') }}</option>
+        </select>
     </div>
 
     <label class="flex items-center gap-2 text-sm text-ink/70">

@@ -74,13 +74,13 @@
 
                     <div>
                         <label class="{{ $label }}">{{ __('سقف عادی هر نفر') }}</label>
-                        <input class="{{ $input }} font-mono" name="manager_ceiling_per_person" type="number" step="0.01" min="0" placeholder="{{ __('بدون تغییر') }}">
+                        <input class="{{ $input }} font-mono" name="manager_ceiling_per_person" type="number" step="1" min="0" placeholder="{{ __('بدون تغییر') }}">
                         <span class="mt-1 block text-xs text-pine/70">{{ __('در اختیار مدیر واحد — مثال: ۹۰') }}</span>
                     </div>
 
                     <div>
                         <label class="{{ $label }}">{{ __('سقف مازاد هر نفر') }}</label>
-                        <input class="{{ $input }} font-mono" name="ceiling_per_person" type="number" step="0.01" min="0" placeholder="{{ __('بدون تغییر') }}">
+                        <input class="{{ $input }} font-mono" name="ceiling_per_person" type="number" step="1" min="0" placeholder="{{ __('بدون تغییر') }}">
                         <span class="mt-1 block text-xs text-pine/70">{{ __('در اختیار معاونت — مثال: ۵') }}</span>
                     </div>
 

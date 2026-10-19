@@ -48,13 +48,13 @@
 
                     <div>
                         <label class="{{ $label }}">{{ __('سقف عادی هر نفر — در اختیار مدیر واحد') }}</label>
-                        <input class="{{ $input }} font-mono" name="manager_ceiling_per_person" type="number" step="0.01" min="0" placeholder="{{ __('مثال: ۹۰') }}">
+                        <input class="{{ $input }} font-mono" name="manager_ceiling_per_person" type="number" step="1" min="0" placeholder="{{ __('مثال: ۹۰') }}">
                         <span class="mt-1 block text-xs text-ink/40">{{ __('سقف کل گروه = تعداد پرسنل دارای این سمت × این عدد.') }}</span>
                     </div>
 
                     <div>
                         <label class="{{ $label }}">{{ __('سقف مازاد هر نفر — در اختیار معاونت') }}</label>
-                        <input class="{{ $input }} font-mono" name="ceiling_per_person" type="number" step="0.01" min="0" required placeholder="{{ __('مثال: ۵') }}">
+                        <input class="{{ $input }} font-mono" name="ceiling_per_person" type="number" step="1" min="0" required placeholder="{{ __('مثال: ۵') }}">
                         <span class="mt-1 block text-xs text-ink/40">{{ __('سقف مازاد کل معاونت = تعداد پرسنل دارای این سمت × این عدد.') }}</span>
                     </div>
 

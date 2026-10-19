@@ -54,6 +54,23 @@ class OvertimePeriodController extends Controller
         $month = (int) $request->input('jalali_month', Jalali::currentMonth());
 
         [$personnel, $role, $scopeTitle] = $this->resolveWorkflowScope($user);
+        $ownDeputies = Deputy::where('head_user_id', $user->id)->get();
+        $deputyPersonnelIds = $ownDeputies
+            ->flatMap(fn (Deputy $deputy) => $deputy->allPersonnelIds())->unique()->values();
+        $deputyCapacitySummary = null;
+        if ($role === 'deputy') {
+            $deputyCapacitySummary = [
+                'total_capacity' => '0.00',
+                'assigned_hours' => '0.00',
+                'remaining_capacity' => '0.00',
+            ];
+            foreach ($ownDeputies as $deputy) {
+                $summary = $this->ceilingService->deputyExcessCapacitySummary($deputy->id, $year, $month);
+                foreach ($deputyCapacitySummary as $key => $value) {
+                    $deputyCapacitySummary[$key] = bcadd($value, $summary[$key], 2);
+                }
+            }
+        }
 
         $positions = Position::whereIn('id', $personnel->pluck('position_id')->filter()->unique())->get();
         $defaultHoursByPosition = $positions->mapWithKeys(fn (Position $position) => [
@@ -99,6 +116,8 @@ class OvertimePeriodController extends Controller
             'month' => $month,
             'specialItems' => SpecialItem::where('is_active', true)->orderBy('title')->get(),
             'defaultHoursByPosition' => $defaultHoursByPosition,
+            'deputyPersonnelIds' => $deputyPersonnelIds,
+            'deputyCapacitySummary' => $deputyCapacitySummary,
         ]);
     }
 
@@ -253,8 +272,6 @@ class OvertimePeriodController extends Controller
         $period->normal_ceiling_snapshot = optional($personnel->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
         $period->save();
 
-        $this->submitDeputyEnteredNormal($manager, $personnel, $period);
-
         // ستون‌های محاسباتی از سمت سرور برمی‌گردند تا ویرایش درون‌خطیِ جدول مجبور
         // نباشد منطق سقف را در جاوااسکریپت بازنویسی کند (محاسبات bcmath است).
         $period->load('specialItemLines');
@@ -290,7 +307,7 @@ class OvertimePeriodController extends Controller
         $manager = $request->user();
 
         $validated = $request->validate([
-            'normal_hours' => ['required', 'numeric', 'min:0'],
+            'normal_hours' => ['required', 'integer', 'min:0'],
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
             // اگر خالی باشد یعنی «همه‌ی زیرمجموعه»؛ در غیر این صورت فقط انتخاب‌شده‌ها.
@@ -354,7 +371,6 @@ class OvertimePeriodController extends Controller
                 $period->normal_hours = $hours;
                 $period->normal_ceiling_snapshot = optional($person->position?->ceilingFor($year, $month))->manager_ceiling_per_person;
                 $period->save();
-                $this->submitDeputyEnteredNormal($manager, $person, $period);
                 $period->load('specialItemLines');
 
                 $rows[$person->id] = [
@@ -387,109 +403,6 @@ class OvertimePeriodController extends Controller
         ]);
     }
 
-    /** ثبت گروهی اضافه‌کار مازاد برای دوره‌های پرسنلِ معاونت جاری. */
-    public function bulkStoreExcess(Request $request): JsonResponse
-    {
-        $deputyHead = $request->user();
-        $validated = $request->validate([
-            'excess_hours' => ['required', 'numeric', 'min:0'],
-            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
-            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
-            'personnel_ids' => ['nullable', 'array'],
-            'personnel_ids.*' => ['integer'],
-            'overwrite' => ['nullable', 'boolean'],
-        ]);
-
-        abort_unless($deputyHead->isDeputyHead(), 403, __('ثبت گروهی اضافه‌کار مازاد فقط در اختیار معاونت است.'));
-
-        $year = (int) $validated['jalali_year'];
-        $month = (int) $validated['jalali_month'];
-        $hours = (string) $validated['excess_hours'];
-        $overwrite = (bool) ($validated['overwrite'] ?? false);
-        $scopeIds = Deputy::where('head_user_id', $deputyHead->id)->get()
-            ->flatMap(fn (Deputy $deputy) => $deputy->allPersonnelIds())->unique()->values();
-
-        $selectedIds = collect($validated['personnel_ids'] ?? []);
-        if ($selectedIds->isNotEmpty()) {
-            abort_if($selectedIds->diff($this->registerablePersonnelIds($deputyHead))->isNotEmpty(), 403, __('در بین افراد انتخاب‌شده، پرسنلی خارج از محدوده‌ی دسترسی شما وجود دارد.'));
-        }
-        $outsideDeputyScopeIds = $selectedIds->diff($scopeIds);
-        $deputySelectedIds = $selectedIds->intersect($scopeIds);
-
-        $periods = OvertimePeriod::with(['personnel.position', 'personnel.unit', 'personnel.deputy'])
-            ->where('jalali_year', $year)->where('jalali_month', $month)
-            ->whereIn('personnel_id', $scopeIds)
-            ->when($selectedIds->isNotEmpty(), fn ($q) => $q->whereIn('personnel_id', $deputySelectedIds))
-            ->get();
-
-        $applied = 0;
-        $skipped = [];
-        $rows = [];
-        if ($outsideDeputyScopeIds->isNotEmpty()) {
-            User::whereIn('id', $outsideDeputyScopeIds)->get()->each(function (User $person) use (&$skipped) {
-                $skipped[] = trim($person->name . ' ' . $person->family) . ' — ' . __('این پرسنل زیرمجموعه‌ی معاونت شما نیست');
-            });
-        }
-        $missingSelectedIds = $deputySelectedIds->diff($periods->pluck('personnel_id'));
-        if ($missingSelectedIds->isNotEmpty()) {
-            User::whereIn('id', $missingSelectedIds)->get()->each(function (User $person) use (&$skipped) {
-                $skipped[] = trim($person->name . ' ' . $person->family) . ' — ' . __('برای این ماه دوره‌ای ثبت نشده است');
-            });
-        }
-
-        foreach ($periods as $period) {
-            $person = $period->personnel;
-            $label = trim($person->name . ' ' . $person->family);
-
-            if (!$period->status->allowsDeputyExcessEntry()) {
-                if ($selectedIds->isNotEmpty()) {
-                    $skipped[] = $label . ' — ' . $period->status->label();
-                }
-                continue;
-            }
-
-            if (!$overwrite && bccomp((string) $period->excess_hours, '0', 2) === 1) {
-                $skipped[] = $label . ' — ' . __('از قبل مقدار مازاد دارد');
-                continue;
-            }
-
-            try {
-                $this->ceilingService->assertExcessWithinCeiling(
-                    $person, $year, $month, $hours, excludePeriodId: $period->id
-                );
-
-                $period->excess_hours = $hours;
-                $period->excess_ceiling_snapshot = $person->position?->ceilingFor($year, $month)?->ceiling_per_person;
-                $period->save();
-                $period->load('specialItemLines');
-                $rows[$person->id] = [
-                    'excess_hours' => (string) $period->excess_hours,
-                    'total' => $period->totalHours(),
-                    'payable' => $period->payableHours(),
-                    'capped' => $period->cappedHours(),
-                    'exceeds' => $period->exceedsOverallCeiling(),
-                    'status' => $period->status->value,
-                    'status_label' => $period->status->label(),
-                ];
-                $applied++;
-            } catch (OvertimeCeilingExceededException $e) {
-                $skipped[] = $label . ' — ' . $e->getMessage();
-            } catch (Throwable $e) {
-                $skipped[] = $label . ' — ' . $e->getMessage();
-            }
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => $applied > 0
-                ? __('اضافه‌کار مازاد :hours ساعت برای :count نفر ثبت شد.', ['hours' => $hours, 'count' => $applied])
-                : __('هیچ رکوردی ثبت نشد.'),
-            'applied' => $applied,
-            'skipped' => $skipped,
-            'rows' => $rows,
-        ]);
-    }
-
     /** ذخیره‌ی مستقل مازاد؛ دوره در انتظار بررسی معاونت باقی می‌ماند. */
     public function storeExcess(OvertimeExcessRequest $request, OvertimePeriod $period): JsonResponse
     {
@@ -515,6 +428,9 @@ class OvertimePeriodController extends Controller
             'success' => true,
             'message' => __('اضافه‌کار مازاد ثبت شد؛ دوره همچنان برای بررسی معاونت باز است.'),
             'data' => $period,
+            'capacity_summary' => $this->ceilingService->deputyExcessCapacitySummary(
+                (int) $period->personnel->effectiveDeputyId(), $period->jalali_year, $period->jalali_month
+            ),
             'computed' => [
                 'total' => $period->totalHours(),
                 'payable' => $period->payableHours(),
@@ -745,23 +661,6 @@ class OvertimePeriodController extends Controller
         $period->update($request->only(['rial_coefficient', 'worked_days_count']));
 
         return response()->json(['success' => true, 'message' => __('پارامترهای مالی ثبت شد.'), 'data' => $period]);
-    }
-
-    /** A deputy who enters normal hours for their personnel submits them into deputy review. */
-    private function submitDeputyEnteredNormal(User $actor, User $personnel, OvertimePeriod $period): void
-    {
-        if (!$this->deputyOwns($actor, $personnel) || !$period->status->editableByManager()) {
-            return;
-        }
-
-        $period->submitted_by = $actor->id;
-        $period->manager_locked_at = now();
-        $period->save();
-        $period->transitionTo(
-            OvertimePeriodStatus::ManagerSubmitted,
-            $actor->id,
-            __('ثبت عادی توسط معاونت و ارسال مستقیم برای بررسی مازاد')
-        );
     }
 
     private function assertManagerOwnsPersonnel(User $manager, User $personnel): \App\Models\Unit

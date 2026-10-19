@@ -9,11 +9,11 @@ class OvertimeSpecialItemLine extends Model
 {
     protected $fillable = [
         'overtime_period_id', 'special_item_id', 'title_snap', 'hours',
-        'requires_deputy_approval', 'deputy_approved', 'entered_by',
+        'unit_snap', 'requires_deputy_approval', 'deputy_approved', 'entered_by',
     ];
 
     protected $casts = [
-        'hours' => 'decimal:2',
+        'hours' => 'integer',
         'requires_deputy_approval' => 'boolean',
         'deputy_approved' => 'boolean',
     ];

@@ -60,7 +60,7 @@
                             <td class="px-5 py-3.5 font-mono text-xs text-ink/70">
                                 {{ $row['special_hours'] }}
                                 @foreach ($row['special_items'] as $item)
-                                    <div class="mt-1 text-[11px] text-ink/50">{{ $item['title'] }}: {{ $item['hours'] }}</div>
+                                    <div class="mt-1 text-[11px] text-ink/50">{{ $item['title'] }}: {{ $item['hours'] }} {{ $item['unit'] === 'day' ? __('روز') : __('ساعت') }}</div>
                                 @endforeach
                             </td>
                             <td class="px-5 py-3.5 font-mono text-xs font-medium text-ink">{{ $row['total_hours'] }}</td>
@@ -75,10 +75,10 @@
                     <tfoot>
                         <tr class="border-t border-line bg-surface/60 text-sm font-medium">
                             <td class="px-5 py-3 text-ink/70" colspan="3">{{ __('جمع کل') }}</td>
-                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((float) $rows->sum(fn ($r) => (float) $r['normal_hours']), 2) }}</td>
-                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((float) $rows->sum(fn ($r) => (float) $r['excess_hours']), 2) }}</td>
-                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((float) $rows->sum(fn ($r) => (float) $r['special_hours']), 2) }}</td>
-                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((float) $rows->sum(fn ($r) => (float) $r['total_hours']), 2) }}</td>
+                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((int) $rows->sum(fn ($r) => (int) $r['normal_hours'])) }}</td>
+                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((int) $rows->sum(fn ($r) => (int) $r['excess_hours'])) }}</td>
+                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((int) $rows->sum(fn ($r) => (int) $r['special_hours'])) }}</td>
+                            <td class="px-5 py-3 font-mono text-xs text-ink">{{ number_format((int) $rows->sum(fn ($r) => (int) $r['total_hours'])) }}</td>
                             <td class="px-5 py-3"></td>
                         </tr>
                     </tfoot>

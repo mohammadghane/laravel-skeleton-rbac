@@ -17,8 +17,8 @@ class ContractTypeCeilingVersion extends Model
     ];
 
     protected $casts = [
-        'ceiling_per_person' => 'decimal:2',
-        'overall_ceiling' => 'decimal:2',
+        'ceiling_per_person' => 'integer',
+        'overall_ceiling' => 'integer',
     ];
 
     public function auditLabel(): string

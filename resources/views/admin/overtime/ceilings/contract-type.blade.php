@@ -56,7 +56,7 @@
 
                     <div>
                         <label class="{{ $label }}">{{ __('سقف کلی قرارداد') }}</label>
-                        <input class="{{ $input }} font-mono" name="overall_ceiling" type="number" step="0.01" min="0" placeholder="{{ __('مثال: ۱۷۵ — اختیاری') }}">
+                        <input class="{{ $input }} font-mono" name="overall_ceiling" type="number" step="1" min="0" placeholder="{{ __('مثال: ۱۷۵ — اختیاری') }}">
                         <span class="mt-1 block text-xs text-ink/40">
                             {{ __('مجموع عادی + مازاد + آیتم‌های ویژه‌ی هر فرد، بیش از این مقدار به واحد مالی ارسال نمی‌شود. خالی بگذارید تا سقفی اعمال نشود.') }}
                         </span>

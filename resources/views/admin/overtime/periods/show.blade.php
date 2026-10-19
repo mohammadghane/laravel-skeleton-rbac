@@ -9,7 +9,7 @@
         $card = 'rounded-2xl border border-line bg-white p-5 shadow-card';
 
         $status = $period?->status;
-        $specialHours = $period?->specialItemLines->sum('hours') ?? $specialItems->sum('default_value');
+        $specialHours = $period?->specialItemLines->where('unit_snap', 'hour')->sum('hours') ?? $specialItems->where('unit', 'hour')->sum('default_value');
         $canManagerEdit = ($isManager || $isDirectDeputy) && $windowOpen && (!$period || $status->editableByManager());
         $canDeputyReview = $isDeputy && $period && $status->editableByDeputy();
         $canDeputyEditExcess = $isDeputy && $period && $status->allowsDeputyExcessEntry();
@@ -51,20 +51,20 @@
                 <dl class="space-y-2.5 text-sm">
                     <div class="flex items-center justify-between">
                         <dt class="text-ink/60">{{ __('اضافه‌کار عادی') }}</dt>
-                        <dd class="font-mono text-ink">{{ $period?->normal_hours ?? '0.00' }}</dd>
+                        <dd class="font-mono text-ink">{{ $period?->normal_hours ?? '0' }}</dd>
                     </div>
                     <div class="flex items-center justify-between">
                         <dt class="text-ink/60">{{ __('اضافه‌کار مازاد') }}</dt>
-                        <dd class="font-mono text-ink">{{ $period?->excess_hours ?? '0.00' }}</dd>
+                        <dd class="font-mono text-ink">{{ $period?->excess_hours ?? '0' }}</dd>
                     </div>
                     <div class="flex items-center justify-between">
-                        <dt class="text-ink/60">{{ __('آیتم‌های ویژه') }}</dt>
-                        <dd class="font-mono text-ink">{{ number_format((float) $specialHours, 2) }}</dd>
+                        <dt class="text-ink/60">{{ __('آیتم‌های ویژه (ساعت)') }}</dt>
+                        <dd class="font-mono text-ink">{{ number_format((int) $specialHours) }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between border-t border-line pt-2.5">
                         <dt class="font-medium text-ink/70">{{ __('جمع کل (خام)') }}</dt>
-                        <dd class="font-mono font-medium text-ink">{{ $period?->totalHours() ?? number_format((float) $specialHours, 2, '.', '') }}</dd>
+                        <dd class="font-mono font-medium text-ink">{{ $period?->totalHours() ?? number_format((int) $specialHours) }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between">
@@ -75,7 +75,7 @@
                     {{-- عدد نهایی ارسالی به واحد مالی --}}
                     <div class="flex items-center justify-between rounded-lg {{ $exceeds ? 'bg-brick-100' : 'bg-pine-100' }} px-3 py-2">
                         <dt class="font-medium {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ __('قابل پرداخت') }}</dt>
-                        <dd class="font-mono font-bold {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ $period?->payableHours() ?? number_format((float) $specialHours, 2, '.', '') }}</dd>
+                        <dd class="font-mono font-bold {{ $exceeds ? 'text-brick' : 'text-pine' }}">{{ $period?->payableHours() ?? number_format((int) $specialHours) }}</dd>
                     </div>
                 </dl>
 
@@ -125,7 +125,7 @@
 
                             <div>
                                 <label class="{{ $label }}">{{ __('ساعت اضافه‌کار عادی') }}</label>
-                                <input class="{{ $input }} font-mono" name="normal_hours" type="number" step="0.01" min="0" required value="{{ $period?->normal_hours ?? '' }}">
+                                <input class="{{ $input }} font-mono" name="normal_hours" type="number" step="1" min="0" required value="{{ $period?->normal_hours ?? '' }}">
                                 <span class="mt-1 block text-xs text-ink/40">
                                     {{ __('ثبت بیش از سقف فردی مجاز است؛ محدودیت فقط روی مجموع گروه اعمال می‌شود.') }}
                                 </span>
@@ -140,9 +140,6 @@
                                 <p class="mb-3 text-xs text-ink/50">{{ __('پس از ارسال برای معاونت، امکان ویرایش برای شما قفل می‌شود.') }}</p>
                                 <button type="submit" class="rounded-lg border border-pine bg-pine-100 px-4 py-2.5 text-sm font-medium text-pine hover:bg-pine/10">{{ __('ارسال برای تایید معاونت') }}</button>
                             </form>
-                        @endif
-                        @if ($isDirectDeputy && $period && $period->status->value === 'manager_submitted')
-                            <p class="mt-3 text-xs text-ink/50">{{ __('ثبت عادی شما مستقیماً برای بررسی معاونت ارسال می‌شود.') }}</p>
                         @endif
                     @else
                         {{-- توضیح دقیقِ دلیل: پیام مبهم باعث می‌شد کاربر فکر کند صفحه فقط
@@ -197,7 +194,7 @@
                         @method('PUT')
                         <div>
                             <label class="{{ $label }}">{{ __('ثبت اضافه‌کار مازاد') }}</label>
-                            <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="0.01" min="0" required value="{{ $period->excess_hours }}">
+                            <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="1" min="0" required value="{{ $period->excess_hours }}">
                             <span class="mt-1 block text-xs text-ink/40">{{ __('می‌توانید مازاد را در پیش‌نویس یا پس از ارسال دوره ذخیره کنید؛ این کار به‌تنهایی دوره را تأیید نمی‌کند.') }}</span>
                         </div>
                         <button type="submit" class="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink/70 hover:bg-surface">{{ __('ذخیره‌ی مازاد بدون تأیید دوره') }}</button>
@@ -251,7 +248,8 @@
                             <thead>
                                 <tr class="border-b border-line text-xs text-ink/50">
                                     <th class="px-3 py-2 font-medium">{{ __('عنوان') }}</th>
-                                    <th class="px-3 py-2 font-medium">{{ __('ساعت') }}</th>
+                                    <th class="px-3 py-2 font-medium">{{ __('مقدار') }}</th>
+                                    <th class="px-3 py-2 font-medium">{{ __('واحد') }}</th>
                                     <th class="px-3 py-2 font-medium">{{ __('وضعیت تایید') }}</th>
                                 </tr>
                             </thead>
@@ -260,6 +258,7 @@
                                     <tr>
                                         <td class="px-3 py-2 text-ink">{{ $line->title_snap }}</td>
                                         <td class="px-3 py-2 font-mono text-xs text-ink/70">{{ $line->hours }}</td>
+                                        <td class="px-3 py-2 text-xs text-ink/60">{{ $line->unit_snap === 'day' ? __('روز') : __('ساعت') }}</td>
                                         <td class="px-3 py-2">
                                             @if ($line->deputy_approved)
                                                 <span class="rounded-full border border-pine/30 bg-pine-100 px-2 py-0.5 text-[11px] font-medium text-pine">{{ __('تاییدشده') }}</span>
@@ -275,8 +274,8 @@
                 @else
                     @if ($specialItems->isNotEmpty())
                         <div class="mb-4 overflow-x-auto">
-                            <table class="w-full text-start text-sm"><thead><tr class="border-b border-line text-xs text-ink/50"><th class="px-3 py-2">{{ __('عنوان') }}</th><th class="px-3 py-2">{{ __('ساعت') }}</th><th class="px-3 py-2">{{ __('وضعیت تایید') }}</th></tr></thead>
-                                <tbody class="divide-y divide-line">@foreach ($specialItems as $item)<tr><td class="px-3 py-2">{{ $item->title }}</td><td class="px-3 py-2 font-mono">{{ $item->default_value }}</td><td class="px-3 py-2 text-xs text-pine">{{ __('تاییدشده') }}</td></tr>@endforeach</tbody>
+                            <table class="w-full text-start text-sm"><thead><tr class="border-b border-line text-xs text-ink/50"><th class="px-3 py-2">{{ __('عنوان') }}</th><th class="px-3 py-2">{{ __('مقدار') }}</th><th class="px-3 py-2">{{ __('واحد') }}</th><th class="px-3 py-2">{{ __('وضعیت تایید') }}</th></tr></thead>
+                                <tbody class="divide-y divide-line">@foreach ($specialItems as $item)<tr><td class="px-3 py-2">{{ $item->title }}</td><td class="px-3 py-2 font-mono">{{ $item->default_value }}</td><td class="px-3 py-2 text-xs text-ink/60">{{ $item->unit === 'day' ? __('روز') : __('ساعت') }}</td><td class="px-3 py-2 text-xs text-pine">{{ __('تاییدشده') }}</td></tr>@endforeach</tbody>
                             </table>
                         </div>
                     @else

@@ -5,7 +5,7 @@
 @section('content')
     @include('admin.overtime.partials.page-header', [
         'title' => __('آیتم‌های امتیازی ویژه'),
-        'subtitle' => __('آیتم‌هایی مانند ذیحسابی، ایثارگری، سرپرست خانوار و بازنشستگی که به‌صورت ساعت اضافه‌کار برای پرسنل واجد شرایط تعریف می‌شوند.'),
+        'subtitle' => __('آیتم‌هایی نظیر ایثارگری، سرپرست خانوار و سایر شرایط خاص پرسنلی که برای کارکنان واجد شرایط تعریف و ثبت میشود و در محاسبه و اعمال اضافه کار آنان در سیستم لحاظ می گردند.'),
         'action' => new \Illuminate\Support\HtmlString(
             '<a href="' . route('admin.overtime.special-items.create') . '" class="open-modal inline-flex items-center gap-2 rounded-lg bg-pine px-4 py-2.5 text-sm font-medium text-white transition hover:bg-pine-600">+ ' . __('آیتم جدید') . '</a>'
         ),

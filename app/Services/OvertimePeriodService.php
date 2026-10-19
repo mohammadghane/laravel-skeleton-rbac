@@ -73,6 +73,7 @@ class OvertimePeriodService
         $values = [
             'title_snap' => $item->title,
             'hours' => $item->default_value,
+            'unit_snap' => $item->unit,
             'requires_deputy_approval' => false,
             'deputy_approved' => true,
         ];

@@ -66,7 +66,7 @@
 
                     <div>
                         <label class="{{ $label }}">{{ __('ساعت') }}</label>
-                        <input class="{{ $input }} font-mono" name="hours" type="number" step="0.01" min="0.01" required>
+                        <input class="{{ $input }} font-mono" name="hours" type="number" step="1" min="1" required>
                         <span class="mt-1 block text-xs text-ink/40">{{ __('نمی‌تواند از ظرفیت باقی‌مانده‌ی معاونت مبدأ بیشتر باشد.') }}</span>
                     </div>
 

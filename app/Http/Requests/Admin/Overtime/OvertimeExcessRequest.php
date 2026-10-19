@@ -15,7 +15,7 @@ class OvertimeExcessRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'excess_hours' => ['required', 'numeric', 'min:0'],
+            'excess_hours' => ['required', 'integer', 'min:0'],
         ];
     }
 }

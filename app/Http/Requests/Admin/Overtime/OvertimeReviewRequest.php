@@ -19,7 +19,7 @@ class OvertimeReviewRequest extends FormRequest
             'decision' => ['required', Rule::in(['approve', 'reject'])],
             'note' => ['nullable', 'string', 'max:1000', 'required_if:decision,reject'],
             // فقط برای deputyReview کاربرد دارد؛ در ceoReview نادیده گرفته می‌شود
-            'excess_hours' => ['nullable', 'numeric', 'min:0'],
+            'excess_hours' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

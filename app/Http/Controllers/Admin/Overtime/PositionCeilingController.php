@@ -43,8 +43,8 @@ class PositionCeilingController extends Controller
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
             // هر دو اختیاری‌اند: فیلد خالی یعنی «تغییر نده» (ویرایش جزئی، مثل انواع قرارداد).
-            'ceiling_per_person' => ['nullable', 'numeric', 'min:0'],
-            'manager_ceiling_per_person' => ['nullable', 'numeric', 'min:0'],
+            'ceiling_per_person' => ['nullable', 'integer', 'min:0'],
+            'manager_ceiling_per_person' => ['nullable', 'integer', 'min:0'],
         ]);
 
         if (!$request->filled('ceiling_per_person') && !$request->filled('manager_ceiling_per_person')) {

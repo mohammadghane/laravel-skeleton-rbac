@@ -42,10 +42,10 @@ class OvertimePeriod extends Model
 
     protected $casts = [
         'status' => OvertimePeriodStatus::class,
-        'normal_hours' => 'decimal:2',
-        'normal_ceiling_snapshot' => 'decimal:2',
-        'excess_hours' => 'decimal:2',
-        'excess_ceiling_snapshot' => 'decimal:2',
+        'normal_hours' => 'integer',
+        'normal_ceiling_snapshot' => 'integer',
+        'excess_hours' => 'integer',
+        'excess_ceiling_snapshot' => 'integer',
         'rial_coefficient' => 'decimal:2',
         'deduction_hours' => 'decimal:2',
         'mission_hours' => 'decimal:2',
@@ -106,18 +106,19 @@ class OvertimePeriod extends Model
     }
 
     /**
-     * جمع «خام» ساعت اضافه‌کار این پرسنل برای این ماه = عادی + مازاد + مجموع آیتم‌های ویژه.
+     * جمع «خام» ساعت اضافه‌کار این پرسنل برای این ماه = عادی + مازاد + آیتم‌های ویژه‌ی ساعتی.
+     * آیتم‌های روزی جداگانه در خروجی مالی می‌آیند و به جمع ساعت‌ها اضافه نمی‌شوند.
      * این عدد بدون اعمال سقف کلی قرارداد است و برای نمایش «آنچه واقعاً ثبت شده» به‌کار می‌رود.
      * برای عددی که باید به واحد مالی برود از payableHours() استفاده کنید.
      */
     public function totalHours(): string
     {
-        $specialTotal = $this->specialItemLines->sum('hours');
+        $specialTotal = $this->specialItemLines->where('unit_snap', 'hour')->sum('hours');
 
         return bcadd(
-            bcadd((string) $this->normal_hours, (string) $this->excess_hours, 2),
+            bcadd((string) $this->normal_hours, (string) $this->excess_hours, 0),
             (string) $specialTotal,
-            2
+            0
         );
     }
 
@@ -154,7 +155,7 @@ class OvertimePeriod extends Model
             return $total;
         }
 
-        return bccomp($total, $ceiling, 2) === 1 ? $ceiling : $total;
+        return bccomp($total, $ceiling, 0) === 1 ? (string) (int) $ceiling : $total;
     }
 
     /** آیا مجموع خام این پرسنل از سقف کلی قراردادش عبور کرده و در خروجی مالی کسر می‌شود؟ */
@@ -162,15 +163,15 @@ class OvertimePeriod extends Model
     {
         $ceiling = $this->overallCeiling();
 
-        return $ceiling !== null && bccomp($this->totalHours(), $ceiling, 2) === 1;
+        return $ceiling !== null && bccomp($this->totalHours(), $ceiling, 0) === 1;
     }
 
     /** مقدار ساعتی که به‌دلیل عبور از سقف کلی قرارداد، به واحد مالی ارسال نمی‌شود. */
     public function cappedHours(): string
     {
         return $this->exceedsOverallCeiling()
-            ? bcsub($this->totalHours(), (string) $this->overallCeiling(), 2)
-            : '0.00';
+            ? (string) (int) bcsub($this->totalHours(), (string) $this->overallCeiling(), 0)
+            : '0';
     }
 
     public function periodLabel(): string

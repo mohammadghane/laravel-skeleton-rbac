@@ -13,7 +13,7 @@ class SpecialItemMonthlyValue extends Model
 
     protected $fillable = ['special_item_id', 'personnel_id', 'jalali_year', 'jalali_month', 'value', 'entered_by'];
 
-    protected $casts = ['value' => 'decimal:2'];
+    protected $casts = ['value' => 'integer'];
 
     public function auditLabel(): string
     {

@@ -95,17 +95,17 @@
                 <dl class="space-y-2.5 text-sm">
                     <div class="flex items-center justify-between">
                         <dt class="text-ink/60">{{ __('اضافه‌کار عادی') }}</dt>
-                        <dd class="font-mono text-ink">{{ $period?->normal_hours ?? '۰.۰۰' }}</dd>
+                        <dd class="font-mono text-ink">{{ $period?->normal_hours ?? '۰' }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between">
                         <dt class="text-ink/60">{{ __('اضافه‌کار مازاد') }}</dt>
-                        <dd class="font-mono text-ink">{{ $period?->excess_hours ?? '۰.۰۰' }}</dd>
+                        <dd class="font-mono text-ink">{{ $period?->excess_hours ?? '۰' }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between">
                         <dt class="text-ink/60">{{ __('آیتم‌های ویژه') }}</dt>
-                        <dd class="font-mono text-ink">{{ number_format((float) ($period?->specialItemLines->sum('hours') ?? 0), 2) }}</dd>
+                        <dd class="font-mono text-ink">{{ number_format((int) ($period?->specialItemLines->where('unit_snap', 'hour')->sum('hours') ?? 0)) }}</dd>
                     </div>
 
                     <div class="flex items-center justify-between border-t border-line pt-2.5">

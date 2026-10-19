@@ -89,7 +89,7 @@ class OvertimeReportService
             ->get()
             ->map(fn (OvertimePeriod $period) => (function () use ($period) {
                 $eligibleItems = $period->personnel->eligibleSpecialItems;
-                $specialHours = $eligibleItems->sum(fn ($item) => (float) $item->default_value);
+                $specialHours = $eligibleItems->where('unit', 'hour')->sum(fn ($item) => (int) $item->default_value);
                 return [
                 'personnel_id' => $period->personnel_id,
                 'personnel_name' => trim($period->personnel->name . ' ' . $period->personnel->family),
@@ -101,9 +101,13 @@ class OvertimeReportService
                 'status_label' => $period->status->label(),
                 'normal_hours' => (string) $period->normal_hours,
                 'excess_hours' => (string) $period->excess_hours,
-                'special_hours' => number_format($specialHours, 2, '.', ''),
-                'special_items' => $eligibleItems->map(fn ($item) => ['title' => $item->title, 'hours' => (string) $item->default_value])->values(),
-                'total_hours' => bcadd(bcadd((string) $period->normal_hours, (string) $period->excess_hours, 2), (string) $specialHours, 2),
+                'special_hours' => (string) $specialHours,
+                'special_items' => $eligibleItems->map(fn ($item) => [
+                    'title' => $item->title,
+                    'hours' => (string) $item->default_value,
+                    'unit' => $item->unit,
+                ])->values(),
+                'total_hours' => bcadd(bcadd((string) $period->normal_hours, (string) $period->excess_hours, 0), (string) $specialHours, 0),
             ];
             })())
             ->sortByDesc(fn ($row) => (float) $row['total_hours'])

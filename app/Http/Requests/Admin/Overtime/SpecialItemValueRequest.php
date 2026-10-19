@@ -16,7 +16,7 @@ class SpecialItemValueRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'value' => ['required', 'numeric', 'min:0'],
+            'value' => ['required', 'integer', 'min:0'],
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
         ];

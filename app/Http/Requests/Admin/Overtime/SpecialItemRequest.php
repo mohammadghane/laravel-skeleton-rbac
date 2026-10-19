@@ -15,7 +15,8 @@ class SpecialItemRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:190'],
-            'default_value' => ['required', 'numeric', 'min:0'],
+            'unit' => ['required', 'in:hour,day'],
+            'default_value' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
         ];
     }

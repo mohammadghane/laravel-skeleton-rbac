@@ -77,7 +77,7 @@
 
                     <div>
                         <label class="{{ $label }}">{{ __('سقف کلی قرارداد') }}</label>
-                        <input class="{{ $input }} font-mono" name="overall_ceiling" type="number" step="0.01" min="0" placeholder="{{ __('بدون تغییر') }}" x-bind:disabled="clearOverall">
+                        <input class="{{ $input }} font-mono" name="overall_ceiling" type="number" step="1" min="0" placeholder="{{ __('بدون تغییر') }}" x-bind:disabled="clearOverall">
                         <label class="mt-1 flex items-center gap-1.5 text-xs text-ink/50">
                             <input type="checkbox" name="clear_overall_ceiling" value="1" x-model="clearOverall" class="rounded border-line text-pine focus:ring-pine/20">
                             {{ __('حذف سقف کلی') }}

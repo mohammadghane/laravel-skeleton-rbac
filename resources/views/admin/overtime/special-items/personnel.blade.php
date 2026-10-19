@@ -5,7 +5,10 @@
 @section('content')
     @include('admin.overtime.partials.page-header', [
         'title' => __('پرسنل مشمول') . ' — ' . $specialItem->title,
-        'subtitle' => __('مقدار ثابت این آیتم: :value ساعت برای هر پرسنل مشمول.', ['value' => $specialItem->default_value]),
+        'subtitle' => __('مقدار ثابت این آیتم: :value :unit برای هر پرسنل مشمول.', [
+            'value' => $specialItem->default_value,
+            'unit' => $specialItem->unit === 'day' ? __('روز') : __('ساعت'),
+        ]),
         'action' => new \Illuminate\Support\HtmlString('<a href="' . route('admin.overtime.special-items.index') . '" class="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink/70">' . __('بازگشت') . '</a>'),
     ])
 

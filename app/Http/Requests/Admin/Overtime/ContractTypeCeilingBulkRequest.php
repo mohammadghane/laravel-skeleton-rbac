@@ -29,8 +29,8 @@ class ContractTypeCeilingBulkRequest extends FormRequest
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
 
-            'ceiling_per_person' => ['nullable', 'numeric', 'min:0'],
-            'overall_ceiling' => ['nullable', 'numeric', 'min:0'],
+            'ceiling_per_person' => ['nullable', 'integer', 'min:0'],
+            'overall_ceiling' => ['nullable', 'integer', 'min:0'],
             'activation_day' => ['nullable', 'integer', 'min:1', 'max:31'],
 
             // اگر تیک بخورد، مقدار خالیِ «سقف کلی» به‌معنای پاک کردن سقف است، نه

@@ -213,6 +213,26 @@ class OvertimeCeilingService
         return $total;
     }
 
+    /** خلاصه‌ی ظرفیت مؤثر، مصرف مازاد و مانده‌ی یک معاونت در یک ماه. */
+    public function deputyExcessCapacitySummary(int $deputyId, int $jalaliYear, int $jalaliMonth): array
+    {
+        $base = $this->deputyBaseExcessCapacity($deputyId, $jalaliYear, $jalaliMonth);
+        $granted = DeputyCapacityTransfer::grantedBy($deputyId, $jalaliYear, $jalaliMonth);
+        $received = DeputyCapacityTransfer::receivedBy($deputyId, $jalaliYear, $jalaliMonth);
+        $capacity = bcadd(bcsub($base, $granted, 2), $received, 2);
+        $assigned = $this->sumDeputyExcessHours($deputyId, $jalaliYear, $jalaliMonth);
+        $remaining = bcsub($capacity, $assigned, 2);
+
+        return [
+            'base_capacity' => $base,
+            'granted_capacity' => $granted,
+            'received_capacity' => $received,
+            'total_capacity' => $capacity,
+            'assigned_hours' => $assigned,
+            'remaining_capacity' => bccomp($remaining, '0', 2) < 0 ? '0.00' : $remaining,
+        ];
+    }
+
     /** مجموع اضافه‌کار مازادِ ثبت‌شده برای کل پرسنل یک معاونت در یک ماه. */
     private function sumDeputyExcessHours(int $deputyId, int $jalaliYear, int $jalaliMonth, ?int $excludePeriodId = null): string
     {

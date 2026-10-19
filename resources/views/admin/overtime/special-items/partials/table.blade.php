@@ -6,7 +6,8 @@
                     <input type="checkbox" class="select-all rounded border-line text-pine focus:ring-pine/20" @change="toggleAll($event.target.checked)">
                 </th>
                 <th class="px-5 py-3 font-medium">{{ __('عنوان آیتم') }}</th>
-                <th class="px-5 py-3 font-medium">{{ __('مقدار ثابت (ساعت)') }}</th>
+                <th class="px-5 py-3 font-medium">{{ __('مقدار ثابت') }}</th>
+                <th class="px-5 py-3 font-medium">{{ __('واحد') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('پرسنل مشمول') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('وضعیت') }}</th>
                 <th class="px-5 py-3 font-medium"></th>
@@ -21,6 +22,7 @@
                     <td class="px-5 py-3.5 font-medium text-ink">{{ $item->title }}</td>
 
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/60">{{ $item->default_value }}</td>
+                    <td class="px-5 py-3.5 text-xs text-ink/60">{{ $item->unit === 'day' ? __('روز') : __('ساعت') }}</td>
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/60">{{ $item->eligible_personnel_count }}</td>
 
                     <td class="px-5 py-3.5">
@@ -40,7 +42,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
+                <tr><td colspan="7" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
             @endforelse
         </tbody>
     </table>

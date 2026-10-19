@@ -75,7 +75,7 @@ class DeputyCapacityTransferController extends Controller
             'to_deputy_id' => ['required', 'integer', 'exists:deputies,id', 'different:from_deputy_id'],
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
-            'hours' => ['required', 'numeric', 'min:0.01'],
+            'hours' => ['required', 'integer', 'min:1'],
             'note' => ['nullable', 'string', 'max:190'],
         ], [
             'to_deputy_id.different' => __('معاونت مبدأ و مقصد نمی‌توانند یکی باشند.'),

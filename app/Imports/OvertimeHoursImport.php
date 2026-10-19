@@ -82,7 +82,7 @@ class OvertimeHoursImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            if (!is_numeric($hours) || (float) $hours < 0) {
+            if (!is_numeric($hours) || filter_var($hours, FILTER_VALIDATE_INT) === false || (int) $hours < 0) {
                 $this->errors[] = __('ردیف :row: مقدار ساعت («:value») معتبر نیست.', ['row' => $rowNumber, 'value' => $hours]);
                 continue;
             }

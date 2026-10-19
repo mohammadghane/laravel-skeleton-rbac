@@ -22,8 +22,8 @@ class PositionCeilingVersion extends Model
     ];
 
     protected $casts = [
-        'ceiling_per_person' => 'decimal:2',
-        'manager_ceiling_per_person' => 'decimal:2',
+        'ceiling_per_person' => 'integer',
+        'manager_ceiling_per_person' => 'integer',
     ];
 
     public function auditLabel(): string

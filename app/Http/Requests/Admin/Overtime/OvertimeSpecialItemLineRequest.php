@@ -17,7 +17,7 @@ class OvertimeSpecialItemLineRequest extends FormRequest
         return [
             'jalali_year' => ['required', 'integer', 'min:1390', 'max:1500'],
             'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
-            'hours' => ['required', 'numeric', 'min:0'],
+            'hours' => ['required', 'integer', 'min:0'],
         ];
     }
 }

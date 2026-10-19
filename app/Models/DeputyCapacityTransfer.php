@@ -25,7 +25,7 @@ class DeputyCapacityTransfer extends Model
     ];
 
     protected $casts = [
-        'hours' => 'decimal:2',
+        'hours' => 'integer',
     ];
 
     public function auditLabel(): string

@@ -8,10 +8,13 @@ use App\Models\SpecialItem;
 use App\Support\Jalali;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
@@ -26,7 +29,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * فقط بر مبنای اعداد تایید نهاییِ مدیرعامل باشد)؛ با $onlyFinalized=false همه را می‌آورد
  * (برای بازبینی پیشِ‌نویس توسط HR، نه برای ارسال نهایی).
  */
-class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithEvents
 {
     private Collection $specialItems;
 
@@ -58,11 +61,12 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
             'اضافه‌کار عادی (ساعت)', 'اضافه‌کار مازاد (ساعت)',
         ];
 
-        $specialItemHeadings = $this->specialItems->pluck('title')->map(fn ($t) => $t . ' (ساعت)')->all();
+        $hourHeadings = $this->specialItems->where('unit', 'hour')->pluck('title')->map(fn ($t) => $t . ' (ساعت)')->all();
+        $dayHeadings = $this->specialItems->where('unit', 'day')->pluck('title')->map(fn ($t) => $t . ' (روز)')->all();
 
         // «جمع خام» و «سقف کلی» و «مازاد بر سقف» فقط جهت شفافیت و ردیابی می‌آیند؛ ستونی که
         // سیستم مالی باید مبنای فیش حقوقی قرار دهد «ساعت قابل پرداخت» است.
-        return array_merge($fixed, $specialItemHeadings, [
+        return array_merge($fixed, $hourHeadings, $dayHeadings, [
             'جمع کل ساعت اضافه‌کار (خام)',
             'سقف کلی قرارداد',
             'مازاد بر سقف (کسرشده)',
@@ -91,11 +95,16 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
             (string) $period->excess_hours,
         ];
 
-        $specialItemValues = $this->specialItems->map(function (SpecialItem $item) use ($period) {
+        $specialItemValues = $this->specialItems->where('unit', 'hour')->map(function (SpecialItem $item) use ($period) {
             return (string) ($period->personnel?->eligibleSpecialItems->firstWhere('id', $item->id)?->default_value ?? '0');
         })->all();
+        $specialItemDayValues = $this->specialItems->where('unit', 'day')->map(function (SpecialItem $item) use ($period) {
+            $eligibleItem = $period->personnel?->eligibleSpecialItems->firstWhere('id', $item->id);
 
-        return array_merge($fixed, $specialItemValues, [
+            return $eligibleItem ? (string) $eligibleItem->default_value : null;
+        })->all();
+
+        return array_merge($fixed, $specialItemValues, $specialItemDayValues, [
             $period->totalHours(),
             $period->overallCeiling() ?? '-',
             $period->cappedHours(),
@@ -106,6 +115,32 @@ class OvertimeMonthlyExport implements FromCollection, WithHeadings, WithMapping
 
     public function styles(Worksheet $sheet): array
     {
-        return [1 => ['font' => ['bold' => true]]];
+        return [1 => ['font' => ['bold' => true, 'name' => 'Arial']]];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event): void {
+                $sheet = $event->sheet->getDelegate();
+                $headings = $this->headings();
+
+                foreach ($headings as $index => $heading) {
+                    $column = Coordinate::stringFromColumnIndex($index + 1);
+                    // محاسبه‌ی خودکار PhpSpreadsheet برای حروف فارسی عرض را کم برآورد
+                    // می‌کند؛ عرض را از طول عنوان می‌گیریم تا متن سرستون بریده نشود.
+                    $width = min(42, max(14, mb_strlen((string) $heading) * 1.15 + 3));
+                    $sheet->getColumnDimension($column)->setWidth($width);
+                }
+
+                $lastColumn = Coordinate::stringFromColumnIndex(count($headings));
+                $sheet->getStyle('A1:' . $lastColumn . '1')->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_RIGHT)
+                    ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setWrapText(true)
+                    ->setReadOrder(Alignment::READORDER_RTL);
+                $sheet->getRowDimension(1)->setRowHeight(34);
+            },
+        ];
     }
 }

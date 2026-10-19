@@ -14,13 +14,13 @@ class SpecialItem extends Model
     public const SUBMITTER_UNIT_MANAGER = 'unit_manager';
 
     protected $fillable = [
-        'title', 'is_variable_per_personnel', 'default_value', 'submitter_role', 'is_active',
+        'title', 'is_variable_per_personnel', 'default_value', 'unit', 'submitter_role', 'is_active',
     ];
 
     protected $casts = [
         'is_variable_per_personnel' => 'boolean',
         'is_active' => 'boolean',
-        'default_value' => 'decimal:2',
+        'default_value' => 'integer',
     ];
 
     public function auditLabel(): string

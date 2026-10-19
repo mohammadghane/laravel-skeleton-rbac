@@ -20,7 +20,7 @@
 
         @include('admin.overtime.import.partials.form', [
             'title' => __('ورود ماموریت'),
-            'hint' => __('فایل مربوط به ساعات ماموریت پرسنل.'),
+            'hint' => __('فایل مربوط به تعداد روز ماموریت پرسنل.'),
             'action' => route('admin.overtime.import.mission'),
             'year' => $year,
             'month' => $month,
@@ -60,9 +60,9 @@
                         <td class="px-3 py-2 text-ink/60">{{ __('فقط برای خوانایی فایل؛ در تطبیق پرسنل استفاده نمی‌شود.') }}</td>
                     </tr>
                     <tr>
-                        <td class="px-3 py-2 font-medium text-ink">{{ __('ساعت') }}</td>
+                        <td class="px-3 py-2 font-medium text-ink">{{ __('ساعت/روز') }}</td>
                         <td class="px-3 py-2 text-brick">{{ __('بله') }}</td>
-                        <td class="px-3 py-2 text-ink/60">{{ __('مقدار عددی؛ بسته به فرم، ساعت کسر کار یا ساعت ماموریت.') }}</td>
+                        <td class="px-3 py-2 text-ink/60">{{ __('مقدار عددی؛ بسته به فرم، ساعت کسر کار یا تعداد روز ماموریت.') }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -77,7 +77,7 @@
                         <th class="border border-line px-3 py-2 font-medium">{{ __('کد پرسنلی') }}</th>
                         <th class="border border-line px-3 py-2 font-medium">{{ __('نام') }}</th>
                         <th class="border border-line px-3 py-2 font-medium">{{ __('نام خانوادگی') }}</th>
-                        <th class="border border-line px-3 py-2 font-medium">{{ __('ساعت') }}</th>
+                        <th class="border border-line px-3 py-2 font-medium">{{ __('ساعت/روز') }}</th>
                     </tr>
                 </thead>
                 <tbody class="text-ink/70">
