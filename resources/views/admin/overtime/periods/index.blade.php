@@ -255,12 +255,12 @@
                                 </td>
 
                                 <td class="px-5 py-3.5 font-mono text-xs text-ink/70" data-cell="excess-{{ $person->id }}">
-                                    @if ($period && (($role === 'deputy' && $deputyPersonnelIds->contains($person->id) && $period->status->allowsDeputyExcessEntry()) || ($role === 'ceo' && $period->status->editableByCeo())))
+                                    @if (($role === 'deputy' && $deputyPersonnelIds->contains($person->id) && (!$period || $period->status->allowsDeputyExcessEntry())) || ($role === 'ceo' && $period && $period->status->editableByCeo()))
                                         <div class="flex items-center gap-1.5">
                                             <input
                                                 type="number" step="1" min="0"
-                                                value="{{ $period->excess_hours }}"
-                                                data-excess-url="{{ route('admin.overtime.periods.excess.store', $period) }}"
+                                                value="{{ $period?->excess_hours }}"
+                                                data-excess-url="{{ $period ? route('admin.overtime.periods.excess.store', $period) : route('admin.overtime.periods.excess.personnel.store', $person) }}"
                                                 @keydown.enter.prevent="$el.blur()"
                                                 @change="saveExcessRow($el, { saving: v => saving = v, ok: () => { saved = true; error = ''; setTimeout(() => saved = false, 2000) }, fail: m => { error = m; saved = false } })"
                                                 :disabled="saving"
@@ -611,7 +611,11 @@
                             'X-CSRF-TOKEN': this.csrf(),
                             'X-Requested-With': 'XMLHttpRequest',
                         },
-                        body: JSON.stringify({ excess_hours: value }),
+                        body: JSON.stringify({
+                            excess_hours: value,
+                            jalali_year: config.year,
+                            jalali_month: config.month,
+                        }),
                     });
                     const data = await response.json();
                     if (!response.ok) {
@@ -621,6 +625,8 @@
 
                     hooks.ok();
                     this.refreshRow(id, data.computed);
+                    this.paintStatus(id, data.computed);
+                    this.ensureSubmitButton(id, data.computed);
                     this.refreshDeputyCapacity(data.capacity_summary);
                     this.toast(data.message ?? 'اضافه‌کار مازاد ثبت شد.', 'success');
                 } catch (error) {

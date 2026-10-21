@@ -151,6 +151,7 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         // ثبت گروهی برای همه‌ی زیرمجموعه - باید پیش از مسیر پارامتری بیاید.
         Route::post('periods/bulk-normal', [OvertimePeriodController::class, 'bulkStoreNormal'])->name('periods.bulk-normal');
         Route::post('personnel/{personnel}/normal', [OvertimePeriodController::class, 'storeNormal'])->name('periods.normal.store');
+        Route::put('personnel/{personnel}/excess', [OvertimePeriodController::class, 'storeExcessForPersonnel'])->name('periods.excess.personnel.store');
         // ارسال گروهی به معاونت - باید پیش از مسیر پارامتری بیاید.
         Route::post('periods/bulk-submit', [OvertimePeriodController::class, 'bulkSubmit'])->name('periods.bulk-submit');
         Route::post('periods/bulk-ceo-approve', [OvertimePeriodController::class, 'bulkCeoApprove'])->name('periods.bulk-ceo-approve');

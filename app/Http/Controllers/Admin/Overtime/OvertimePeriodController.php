@@ -427,6 +427,29 @@ class OvertimePeriodController extends Controller
     public function storeExcess(OvertimeExcessRequest $request, OvertimePeriod $period): JsonResponse
     {
         $actor = $request->user();
+        return $this->persistExcess($request, $period, $actor);
+    }
+
+    /** اولین ثبت مازاد از فهرست، حتی اگر برای پرسنل هنوز دوره ساخته نشده باشد. */
+    public function storeExcessForPersonnel(OvertimeExcessRequest $request, User $personnel): JsonResponse
+    {
+        $actor = $request->user();
+        $this->assertDeputyOwnsPersonnel($actor, $personnel);
+
+        $validated = $request->validate([
+            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
+            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        $period = $this->periodService->findOrCreateDraft(
+            $personnel, (int) $validated['jalali_year'], (int) $validated['jalali_month']
+        );
+
+        return $this->persistExcess($request, $period, $actor);
+    }
+
+    private function persistExcess(OvertimeExcessRequest $request, OvertimePeriod $period, User $actor): JsonResponse
+    {
         $isCeo = $actor->hasPermission('overtime/ceo-approve');
         if (!$isCeo) {
             $this->assertDeputyOwnsPersonnel($actor, $period->personnel);
@@ -464,6 +487,9 @@ class OvertimePeriodController extends Controller
                 'payable' => $period->payableHours(),
                 'capped' => $period->cappedHours(),
                 'exceeds' => $period->exceedsOverallCeiling(),
+                'status' => $period->status->value,
+                'status_label' => $period->status->label(),
+                'editable' => $period->status->editableByManager(),
             ],
         ]);
     }
