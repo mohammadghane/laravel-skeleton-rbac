@@ -14,6 +14,7 @@
         $canManagerEdit = ($isManager || $isDeputy) && $windowOpen && $normalStatusEditable;
         $canDeputyReview = $isDeputy && $period && $status->editableByDeputy();
         $canDeputyEditExcess = $isDeputy && $period && $status->allowsDeputyExcessEntry();
+        $canCeoEditExcess = $isCeo && $period && ($status->allowsDeputyExcessEntry() || $status->editableByCeo());
         $canCeoReview = $isCeo && $period && $status->editableByCeo();
         $exceeds = $period?->exceedsOverallCeiling() ?? false;
     @endphp
@@ -185,21 +186,23 @@
                 </div>
             @endif
 
-            {{-- معاونت: اضافه‌کار مازاد + تایید/رد --}}
-            @if ($canDeputyReview || $canDeputyEditExcess)
+            {{-- معاونت/مدیرعامل: ثبت اضافه‌کار مازاد؛ تایید گردش‌کار فقط برای معاونت --}}
+            @if ($canDeputyReview || $canDeputyEditExcess || $canCeoEditExcess)
                 <div class="{{ $card }}">
-                    <h3 class="mb-4 text-base font-semibold text-ink">{{ $canDeputyReview ? __('بررسی معاونت') : __('ثبت اضافه‌کار مازاد معاونت') }}</h3>
+                    <h3 class="mb-4 text-base font-semibold text-ink">{{ $canDeputyReview ? __('بررسی معاونت') : ($canCeoEditExcess ? __('ثبت اضافه‌کار مازاد مدیرعامل') : __('ثبت اضافه‌کار مازاد معاونت')) }}</h3>
 
-                    <form class="js-ajax-form mb-4 space-y-3 border-b border-line pb-4" method="POST" action="{{ route('admin.overtime.periods.excess.store', $period) }}" data-callback="reloadPeriod">
-                        @csrf
-                        @method('PUT')
-                        <div>
-                            <label class="{{ $label }}">{{ __('ثبت اضافه‌کار مازاد') }}</label>
-                            <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="1" min="0" required value="{{ $period->excess_hours }}">
-                            <span class="mt-1 block text-xs text-ink/40">{{ __('می‌توانید مازاد را در پیش‌نویس یا پس از ارسال دوره ذخیره کنید؛ این کار به‌تنهایی دوره را تأیید نمی‌کند.') }}</span>
-                        </div>
-                        <button type="submit" class="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink/70 hover:bg-surface">{{ __('ذخیره‌ی مازاد بدون تأیید دوره') }}</button>
-                    </form>
+                    @if ($canDeputyEditExcess || $canCeoEditExcess)
+                        <form class="js-ajax-form mb-4 space-y-3 border-b border-line pb-4" method="POST" action="{{ route('admin.overtime.periods.excess.store', $period) }}" data-callback="reloadPeriod">
+                            @csrf
+                            @method('PUT')
+                            <div>
+                                <label class="{{ $label }}">{{ __('ثبت اضافه‌کار مازاد') }}</label>
+                                <input class="{{ $input }} font-mono" name="excess_hours" type="number" step="1" min="0" required value="{{ $period->excess_hours }}">
+                                <span class="mt-1 block text-xs text-ink/40">{{ __('ثبت مازاد به‌تنهایی وضعیت دوره را تغییر نمی‌دهد.') }}</span>
+                            </div>
+                            <button type="submit" class="rounded-lg border border-line px-4 py-2.5 text-sm font-medium text-ink/70 hover:bg-surface">{{ __('ذخیره‌ی مازاد') }}</button>
+                        </form>
+                    @endif
 
                     @if ($canDeputyReview)
                     <form class="js-ajax-form space-y-4" method="POST" action="{{ route('admin.overtime.periods.deputy-review', $period) }}" data-callback="reloadPeriod">

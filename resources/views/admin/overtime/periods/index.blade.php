@@ -255,7 +255,7 @@
                                 </td>
 
                                 <td class="px-5 py-3.5 font-mono text-xs text-ink/70" data-cell="excess-{{ $person->id }}">
-                                    @if ($role === 'deputy' && $period && $deputyPersonnelIds->contains($person->id) && $period->status->allowsDeputyExcessEntry())
+                                    @if ($period && (($role === 'deputy' && $deputyPersonnelIds->contains($person->id) && $period->status->allowsDeputyExcessEntry()) || ($role === 'ceo' && $period->status->editableByCeo())))
                                         <div class="flex items-center gap-1.5">
                                             <input
                                                 type="number" step="1" min="0"

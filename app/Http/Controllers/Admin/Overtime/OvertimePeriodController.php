@@ -426,9 +426,15 @@ class OvertimePeriodController extends Controller
     /** ذخیره‌ی مستقل مازاد؛ دوره در انتظار بررسی معاونت باقی می‌ماند. */
     public function storeExcess(OvertimeExcessRequest $request, OvertimePeriod $period): JsonResponse
     {
-        $deputy = $request->user();
-        $this->assertDeputyOwnsPersonnel($deputy, $period->personnel);
-        abort_unless($period->status->allowsDeputyExcessEntry(), 422, __('ثبت اضافه‌کار مازاد فقط در وضعیت پیش‌نویس یا وضعیت‌های در اختیار معاونت امکان‌پذیر است.'));
+        $actor = $request->user();
+        $isCeo = $actor->hasPermission('overtime/ceo-approve');
+        if (!$isCeo) {
+            $this->assertDeputyOwnsPersonnel($actor, $period->personnel);
+        }
+
+        $canEditExcess = $period->status->allowsDeputyExcessEntry()
+            || ($isCeo && $period->status->editableByCeo());
+        abort_unless($canEditExcess, 422, __('ثبت اضافه‌کار مازاد فقط در پیش‌نویس یا مراحل در اختیار معاونت و مدیرعامل امکان‌پذیر است.'));
 
         try {
             $this->ceilingService->assertExcessWithinCeiling(
@@ -444,13 +450,15 @@ class OvertimePeriodController extends Controller
         $period->save();
         $period->load('specialItemLines');
 
+        $deputyId = $period->personnel->effectiveDeputyId();
+
         return response()->json([
             'success' => true,
             'message' => __('اضافه‌کار مازاد ثبت شد؛ دوره همچنان برای بررسی معاونت باز است.'),
             'data' => $period,
-            'capacity_summary' => $this->ceilingService->deputyExcessCapacitySummary(
-                (int) $period->personnel->effectiveDeputyId(), $period->jalali_year, $period->jalali_month
-            ),
+            'capacity_summary' => $deputyId
+                ? $this->ceilingService->deputyExcessCapacitySummary($deputyId, $period->jalali_year, $period->jalali_month)
+                : null,
             'computed' => [
                 'total' => $period->totalHours(),
                 'payable' => $period->payableHours(),
