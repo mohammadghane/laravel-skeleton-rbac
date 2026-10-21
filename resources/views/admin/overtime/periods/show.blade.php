@@ -218,24 +218,28 @@
                 </div>
             @endif
 
-            {{-- مدیرعامل: تایید/رد نهایی --}}
-            @if ($canCeoReview)
+            {{-- باکس تایید نهایی فقط برای مدیرعامل نمایش داده می‌شود. --}}
+            @if ($isCeo)
                 <div class="{{ $card }}">
                     <h3 class="mb-4 text-base font-semibold text-ink">{{ __('تایید نهایی مدیرعامل') }}</h3>
 
-                    <form class="js-ajax-form space-y-4" method="POST" action="{{ route('admin.overtime.periods.ceo-review', $period) }}" data-callback="reloadPeriod">
-                        @csrf
+                    @if ($canCeoReview)
+                        <form class="js-ajax-form space-y-4" method="POST" action="{{ route('admin.overtime.periods.ceo-review', $period) }}" data-callback="reloadPeriod">
+                            @csrf
 
-                        <div>
-                            <label class="{{ $label }}">{{ __('توضیح (اختیاری)') }}</label>
-                            <input class="{{ $input }}" name="note" value="">
-                        </div>
+                            <div>
+                                <label class="{{ $label }}">{{ __('توضیح (اختیاری)') }}</label>
+                                <input class="{{ $input }}" name="note" value="">
+                            </div>
 
-                        <div class="flex flex-wrap gap-2">
-                            <button type="submit" name="decision" value="approve" class="rounded-lg bg-pine px-4 py-2.5 text-sm font-medium text-white hover:bg-pine-600">{{ __('تایید نهایی') }}</button>
-                            <button type="submit" name="decision" value="reject" class="rounded-lg border border-brick/30 bg-brick-100 px-4 py-2.5 text-sm font-medium text-brick hover:bg-brick/10">{{ __('رد و بازگشت به معاونت') }}</button>
-                        </div>
-                    </form>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="submit" name="decision" value="approve" class="rounded-lg bg-pine px-4 py-2.5 text-sm font-medium text-white hover:bg-pine-600">{{ __('تایید نهایی') }}</button>
+                                <button type="submit" name="decision" value="reject" class="rounded-lg border border-brick/30 bg-brick-100 px-4 py-2.5 text-sm font-medium text-brick hover:bg-brick/10">{{ __('رد و بازگشت به معاونت') }}</button>
+                            </div>
+                        </form>
+                    @else
+                        <p class="text-sm text-ink/50">{{ __('این دوره در وضعیت انتظار برای تایید نهایی مدیرعامل نیست.') }}</p>
+                    @endif
                 </div>
             @endif
 

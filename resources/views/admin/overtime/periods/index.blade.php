@@ -27,6 +27,7 @@
         x-data="overtimeEntry({
             bulkUrl: '{{ route('admin.overtime.periods.bulk-normal') }}',
             submitUrl: '{{ route('admin.overtime.periods.bulk-submit') }}',
+            ceoApproveUrl: '{{ route('admin.overtime.periods.bulk-ceo-approve') }}',
             year: {{ $year }},
             month: {{ $month }},
             role: '{{ $role }}',
@@ -50,6 +51,20 @@
                 {{ __('دوره‌ی جاری') }}: <span class="font-mono text-ink/70">{{ \App\Support\Jalali::periodLabel($year, $month) }}</span>
             </span>
         </div>
+
+        @if ($role === 'ceo')
+            <div class="mb-4 flex justify-end">
+                <button
+                    type="button"
+                    @click="bulkApproveAll()"
+                    :disabled="busy"
+                    class="rounded-lg bg-pine px-4 py-2 text-sm font-medium text-white transition hover:bg-pine/90 disabled:opacity-60"
+                >
+                    <span x-show="!busy">{{ __('تایید نهایی همه‌ی اضافه‌کارهای در انتظار') }}</span>
+                    <span x-show="busy">{{ __('در حال تایید…') }}</span>
+                </button>
+            </div>
+        @endif
 
         @if ($canEditInline)
             {{-- ثبت گروهی: یک عدد برای همه‌ی زیرمجموعه یا فقط ردیف‌های انتخاب‌شده. --}}
@@ -495,6 +510,40 @@
 
                     this.toast(data.message, 'success');
                     window.location.reload();
+                } catch (error) {
+                    this.toast('ارتباط با سرور برقرار نشد.');
+                } finally {
+                    this.busy = false;
+                }
+            },
+
+            async bulkApproveAll() {
+                if (this.busy || !confirm('همه‌ی اضافه‌کارهای در انتظار تایید مدیرعامل در این ماه نهایی شوند؟')) return;
+
+                this.busy = true;
+                try {
+                    const response = await fetch(config.ceoApproveUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': this.csrf(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            jalali_year: config.year,
+                            jalali_month: config.month,
+                        }),
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        this.toast(data.message ?? 'تایید نهایی انجام نشد.');
+                        return;
+                    }
+
+                    this.toast(data.message, data.approved > 0 ? 'success' : 'error');
+                    if (data.approved > 0) window.location.reload();
                 } catch (error) {
                     this.toast('ارتباط با سرور برقرار نشد.');
                 } finally {

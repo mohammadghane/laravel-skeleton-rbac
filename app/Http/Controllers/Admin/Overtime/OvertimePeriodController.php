@@ -21,6 +21,7 @@ use App\Support\Jalali;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -101,6 +102,26 @@ class OvertimePeriodController extends Controller
                 return str_contains($haystack, $term);
             })->values();
         }
+
+        // فهرست بر اساس مرحله‌ی گردش کار مرتب شود؛ پرسنل بدون دوره نیز در گروه پیش‌نویس
+        // قرار می‌گیرند تا ثبت اولیه‌شان در ابتدای فهرست بماند.
+        $statusOrder = [
+            OvertimePeriodStatus::Draft->value => 0,
+            OvertimePeriodStatus::DeputyRejected->value => 1,
+            OvertimePeriodStatus::ManagerSubmitted->value => 2,
+            OvertimePeriodStatus::CeoRejected->value => 3,
+            OvertimePeriodStatus::DeputyApproved->value => 4,
+            OvertimePeriodStatus::CeoApproved->value => 5,
+            OvertimePeriodStatus::Finalized->value => 6,
+        ];
+        $personnel = $personnel->sortBy(function ($person) use ($periods, $statusOrder) {
+            $status = $periods->get($person->id)?->status->value ?? OvertimePeriodStatus::Draft->value;
+
+            return [
+                $statusOrder[$status] ?? 0,
+                mb_strtolower(trim($person->family . ' ' . $person->name)),
+            ];
+        })->values();
 
         // سازگاری با مصرف‌کننده‌های API که همچنان JSON انتظار دارند.
         if ($request->wantsJson() && !$request->ajax()) {
@@ -612,6 +633,48 @@ class OvertimePeriodController extends Controller
         $period->transitionTo(OvertimePeriodStatus::Finalized, $request->user()->id, __('نهایی‌سازی برای خروجی مالی'));
 
         return response()->json(['success' => true, 'message' => __('دوره تایید نهایی و برای سیستم مالی آماده شد.'), 'data' => $period->fresh()]);
+    }
+
+    /** تایید نهایی گروهی همه‌ی دوره‌های در انتظار مدیرعامل برای ماه انتخاب‌شده. */
+    public function bulkCeoApprove(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->hasPermission('overtime/ceo-approve'), 403);
+
+        $validated = $request->validate([
+            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
+            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        $approved = DB::transaction(function () use ($validated, $request) {
+            $periods = OvertimePeriod::query()
+                ->where('jalali_year', (int) $validated['jalali_year'])
+                ->where('jalali_month', (int) $validated['jalali_month'])
+                ->where('status', OvertimePeriodStatus::DeputyApproved->value)
+                ->lockForUpdate()
+                ->get();
+
+            $approved = 0;
+            foreach ($periods as $period) {
+                $period->ceo_reviewed_by = $request->user()->id;
+                $period->ceo_reviewed_at = now();
+                $period->save();
+                $period->transitionTo(OvertimePeriodStatus::CeoApproved, $request->user()->id);
+                $period->finalized_at = now();
+                $period->save();
+                $period->transitionTo(OvertimePeriodStatus::Finalized, $request->user()->id, __('نهایی‌سازی گروهی برای خروجی مالی'));
+                $approved++;
+            }
+
+            return $approved;
+        });
+
+        return response()->json([
+            'success' => true,
+            'approved' => $approved,
+            'message' => $approved > 0
+                ? __(':count دوره با تمام ساعت‌های ثبت‌شده تایید نهایی شد.', ['count' => $approved])
+                : __('دوره‌ای در انتظار تایید نهایی نیست.'),
+        ]);
     }
 
     /**
