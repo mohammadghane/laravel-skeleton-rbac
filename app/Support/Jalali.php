@@ -16,7 +16,9 @@ class Jalali
     /** [year, month, day] شمسی معادل یک Carbon/تاریخ میلادی (پیش‌فرض: اکنون). */
     public static function fromGregorian(?Carbon $date = null): array
     {
-        $date ??= Carbon::now();
+        // پنجره‌های ثبت با روز محلی ایران سنجیده می‌شوند؛ استفاده از timezone پیش‌فرض
+        // سرور (اغلب UTC) در چند ساعت اول روز اول ماه، ماه شمسی را یک ماه عقب نشان می‌داد.
+        $date ??= Carbon::now('Asia/Tehran');
 
         return CalendarUtils::toJalali(
             (int) $date->format('Y'),

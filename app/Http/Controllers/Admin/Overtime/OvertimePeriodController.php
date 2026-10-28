@@ -151,6 +151,12 @@ class OvertimePeriodController extends Controller
     {
         $with = ['unit', 'deputy', 'position', 'contractType'];
 
+        // مجوز مدیرعامل باید بر نقش‌های اجرایی احتمالی او در چارت مقدم باشد؛
+        // وگرنه فهرست به‌جای ابزار تایید نهایی، دکمه‌های ارسال معاونت/مدیر را نشان می‌دهد.
+        if ($user->hasPermission('overtime/ceo-approve')) {
+            return [User::with($with)->orderBy('name')->get(), 'ceo', __('کل سازمان')];
+        }
+
         // معاون و مدیر واحد: محدوده‌ی هر دو با هم.
         //
         // در داده‌ی واقعی این دو نقش لزوماً تودرتو نیستند - کسی می‌تواند معاونِ
@@ -179,10 +185,6 @@ class OvertimePeriodController extends Controller
                 $isDeputyHead ? 'deputy' : 'manager',
                 implode('، ', $labels),
             ];
-        }
-
-        if ($user->hasPermission('overtime/ceo-approve')) {
-            return [User::with($with)->orderBy('name')->get(), 'ceo', __('کل سازمان')];
         }
 
         if ($user->hasPermission('overtime/hr-manage')) {
@@ -217,6 +219,7 @@ class OvertimePeriodController extends Controller
         }
 
         $ceilingVersion = $personnel->contractType?->ceilingFor($year, $month);
+        $isCeo = $user->hasPermission('overtime/ceo-approve');
 
         return view('admin.overtime.periods.show', [
             'personnel' => $personnel->load(['unit', 'deputy', 'position', 'contractType']),
@@ -227,10 +230,10 @@ class OvertimePeriodController extends Controller
                 ->whereHas('eligiblePersonnel', fn ($q) => $q->where('personnel_id', $personnel->id)->where('is_eligible', true))
                 ->orderBy('title')->get(),
             'ceilingVersion' => $ceilingVersion,
-            'windowOpen' => (bool) $ceilingVersion?->isRegistrationWindowOpen(),
-            'isManager' => $personnel->unit && $personnel->unit->manager_user_id === $user->id,
-            'isDeputy' => $this->deputyOwns($user, $personnel),
-            'isCeo' => $user->hasPermission('overtime/ceo-approve'),
+            'windowOpen' => (bool) $ceilingVersion?->isRegistrationWindowOpen($year, $month),
+            'isManager' => !$isCeo && $personnel->unit && $personnel->unit->manager_user_id === $user->id,
+            'isDeputy' => !$isCeo && $this->deputyOwns($user, $personnel),
+            'isCeo' => $isCeo,
             'isHr' => $user->hasPermission('overtime/hr-manage'),
         ]);
     }
@@ -366,7 +369,7 @@ class OvertimePeriodController extends Controller
             try {
                 $ceiling = $person->contractType?->ceilingFor($year, $month);
 
-                if (!$ceiling || !$ceiling->isRegistrationWindowOpen()) {
+                if (!$ceiling || !$ceiling->isRegistrationWindowOpen($year, $month)) {
                     $skipped[] = $label . ' — ' . __('پنجره‌ی ثبت باز نیست');
                     continue;
                 }
@@ -572,6 +575,77 @@ class OvertimePeriodController extends Controller
             'submitted' => $submitted,
             'skipped' => $skipped,
             'rows' => $rows,
+        ]);
+    }
+
+    /** ارسال گروهی دوره‌های معاونت به مدیرعامل؛ پیش‌نویس‌ها ابتدا ثبت مدیر را طی می‌کنند. */
+    public function bulkDeputySubmit(Request $request): JsonResponse
+    {
+        $deputyHead = $request->user();
+        abort_unless($deputyHead->isDeputyHead(), 403, __('شما سرپرست هیچ معاونتی نیستید.'));
+
+        $validated = $request->validate([
+            'jalali_year' => ['required', 'integer', 'min:1390', 'max:1450'],
+            'jalali_month' => ['required', 'integer', 'min:1', 'max:12'],
+            'personnel_ids' => ['nullable', 'array'],
+            'personnel_ids.*' => ['integer'],
+        ]);
+
+        $ownPersonnelIds = Deputy::where('head_user_id', $deputyHead->id)
+            ->get()
+            ->flatMap(fn (Deputy $deputy) => $deputy->allPersonnelIds())
+            ->unique()->values();
+        $requestedIds = !empty($validated['personnel_ids'])
+            ? collect($validated['personnel_ids'])->unique()->values()
+            : $ownPersonnelIds;
+        $foreignIds = $requestedIds->diff($ownPersonnelIds);
+        $periods = OvertimePeriod::with(['personnel', 'specialItemLines'])
+            ->whereIn('personnel_id', $requestedIds->intersect($ownPersonnelIds))
+            ->where('jalali_year', (int) $validated['jalali_year'])
+            ->where('jalali_month', (int) $validated['jalali_month'])
+            ->get();
+
+        $submitted = 0;
+        $skipped = $foreignIds->map(fn ($id) => __('پرسنل #:id زیرمجموعه‌ی معاونت شما نیست.', ['id' => $id]))->all();
+
+        DB::transaction(function () use ($periods, $deputyHead, &$submitted, &$skipped) {
+            foreach ($periods as $period) {
+                $label = trim($period->personnel->name . ' ' . $period->personnel->family);
+
+                try {
+                    if ($period->status->editableByManager()) {
+                        $period->submitted_by = $deputyHead->id;
+                        $period->manager_locked_at = now();
+                        $period->save();
+                        $period->transitionTo(OvertimePeriodStatus::ManagerSubmitted, $deputyHead->id, __('ارسال گروهی توسط معاونت برای مدیرعامل'));
+                    }
+
+                    if (!$period->status->editableByDeputy()) {
+                        $skipped[] = $label . ' — ' . $period->status->label();
+                        continue;
+                    }
+
+                    $period->specialItemLines()
+                        ->where('requires_deputy_approval', true)
+                        ->update(['deputy_approved' => true]);
+                    $period->deputy_reviewed_by = $deputyHead->id;
+                    $period->deputy_reviewed_at = now();
+                    $period->save();
+                    $period->transitionTo(OvertimePeriodStatus::DeputyApproved, $deputyHead->id, __('ارسال گروهی برای مدیرعامل'));
+                    $submitted++;
+                } catch (Throwable $e) {
+                    $skipped[] = $label . ' — ' . $e->getMessage();
+                }
+            }
+        });
+
+        return response()->json([
+            'success' => true,
+            'submitted' => $submitted,
+            'skipped' => $skipped,
+            'message' => $submitted > 0
+                ? __(':count دوره برای بررسی مدیرعامل ارسال شد.', ['count' => $submitted])
+                : __('دوره‌ی قابل ارسالی برای مدیرعامل یافت نشد.'),
         ]);
     }
 
@@ -833,7 +907,7 @@ class OvertimePeriodController extends Controller
     {
         $deputyId = $personnel->effectiveDeputyId();
         $deputy = $deputyId ? Deputy::find($deputyId) : null;
-        abort_if(!$deputy || $deputy->head_user_id !== $deputyHead->id, 403, __('این پرسنل زیرمجموعه‌ی معاونت شما نیست.'));
+        abort_if(!$deputy || (int) $deputy->head_user_id !== (int) $deputyHead->id, 403, __('این پرسنل زیرمجموعه‌ی معاونت شما نیست.'));
 
         return $deputy;
     }
@@ -842,6 +916,6 @@ class OvertimePeriodController extends Controller
     {
         $ceiling = $personnel->contractType?->ceilingFor($year, $month);
         abort_if(!$ceiling, 422, __('سقف/روز فعال‌سازی برای این نوع قرارداد در این ماه تعریف نشده است.'));
-        abort_unless($ceiling->isRegistrationWindowOpen(), 422, __('پنجره‌ی ثبت اضافه‌کار برای این ماه هنوز باز نشده یا بسته شده است.'));
+        abort_unless($ceiling->isRegistrationWindowOpen($year, $month), 422, __('پنجره‌ی ثبت اضافه‌کار برای این ماه هنوز باز نشده یا بسته شده است.'));
     }
 }

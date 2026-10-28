@@ -11,6 +11,7 @@
                      و برای تطبیق فایل‌های اکسل (کسر کار/ماموریت) هم همین کد مبناست. --}}
                 <th class="px-5 py-3 font-medium">{{ __('کد پرسنلی') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('سمت سازمانی') }}</th>
+                <th class="px-5 py-3 font-medium">{{ __('واحد سازمانی') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('معاونت') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('موبایل') }}</th>
                 <th class="px-5 py-3 font-medium">{{ __('تاریخ ثبت') }}</th>
@@ -27,6 +28,7 @@
                     <td class="px-5 py-3.5 text-ink/60">{{ $user->username }}</td>
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/50">{{ $user->personnel_code ?: '—' }}</td>
                     <td class="px-5 py-3.5 text-xs text-ink/60">{{ $user->position?->title ?: '—' }}</td>
+                    <td class="px-5 py-3.5 text-xs text-ink/60">{{ $user->unit?->title ?: '—' }}</td>
                     {{-- معاونتِ مؤثر: اگر deputy_id مستقیم نباشد، از واحد خوانده می‌شود. --}}
                     <td class="px-5 py-3.5 text-xs text-ink/60">{{ $user->effectiveDeputy()?->title ?: '—' }}</td>
                     <td class="px-5 py-3.5 font-mono text-xs text-ink/60">{{ $user->cell }}</td>
@@ -39,7 +41,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="9" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
+                <tr><td colspan="10" class="px-5 py-10 text-center text-ink/40">{{ __('موردی یافت نشد') }}</td></tr>
             @endforelse
         </tbody>
     </table>

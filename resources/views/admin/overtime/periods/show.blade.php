@@ -140,7 +140,7 @@
                             <form class="js-ajax-form mt-4 border-t border-line pt-4" method="POST" action="{{ route('admin.overtime.periods.submit', $period) }}" data-callback="reloadPeriod">
                                 @csrf
                                 <p class="mb-3 text-xs text-ink/50">{{ __('پس از ارسال برای معاونت، امکان ویرایش برای شما قفل می‌شود.') }}</p>
-                                <button type="submit" class="rounded-lg border border-pine bg-pine-100 px-4 py-2.5 text-sm font-medium text-pine hover:bg-pine/10">{{ __('ارسال برای تایید معاونت') }}</button>
+                                <button type="submit" class="rounded-lg border border-pine bg-pine-100 px-4 py-2.5 text-sm font-medium text-pine hover:bg-pine/10">{{ $isDeputy ? __('ارسال به مدیرعامل') : __('ارسال برای تایید معاونت') }}</button>
                             </form>
                         @endif
                     @else

@@ -27,6 +27,7 @@
         x-data="overtimeEntry({
             bulkUrl: '{{ route('admin.overtime.periods.bulk-normal') }}',
             submitUrl: '{{ route('admin.overtime.periods.bulk-submit') }}',
+            deputySubmitUrl: '{{ route('admin.overtime.periods.bulk-deputy-submit') }}',
             ceoApproveUrl: '{{ route('admin.overtime.periods.bulk-ceo-approve') }}',
             year: {{ $year }},
             month: {{ $month }},
@@ -302,7 +303,7 @@
 
                                 <td class="px-5 py-3.5" data-cell="actions-{{ $person->id }}">
                                     <div class="flex justify-end gap-2">
-                                        @if ($role === 'deputy' && $period && $period->status->editableByDeputy())
+                                        @if ($role === 'deputy' && $period && $deputyPersonnelIds->contains($person->id) && $period->status->editableByDeputy())
                                             <button
                                                 type="button"
                                                 @click="sendToCeo('{{ route('admin.overtime.periods.deputy-review', $period) }}')"
@@ -443,14 +444,18 @@
 
                 const target = ids ?? this.selected;
                 const scope = target.length ? `${target.length} مورد` : 'همه‌ی دوره‌های آماده';
+                const endpoint = config.role === 'deputy' ? config.deputySubmitUrl : config.submitUrl;
+                const confirmation = config.role === 'deputy'
+                    ? `ارسال ${scope} برای بررسی مدیرعامل؟`
+                    : `ارسال ${scope} برای بررسی معاونت؟ پس از ارسال، ویرایش برای شما قفل می‌شود.`;
 
-                if (!confirm(`ارسال ${scope} برای بررسی معاونت؟ پس از ارسال، ویرایش برای شما قفل می‌شود.`)) return;
+                if (!confirm(confirmation)) return;
 
                 this.busy = true;
                 this.skipped = [];
 
                 try {
-                    const response = await fetch(config.submitUrl, {
+                    const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -474,6 +479,11 @@
 
                     this.skipped = data.skipped ?? [];
                     this.toast(data.message, data.submitted > 0 ? 'success' : 'error');
+
+                    if (config.role === 'deputy' && data.submitted > 0) {
+                        window.location.reload();
+                        return;
+                    }
 
                     // ارسال یعنی قفل‌شدن سطر؛ اگر جدول به‌روز نشود، فیلد ویرایشِ بازِ
                     // غیرقابل‌ذخیره روی صفحه می‌ماند - بدترین حالت ممکن.

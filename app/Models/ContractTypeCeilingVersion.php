@@ -36,8 +36,8 @@ class ContractTypeCeilingVersion extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function isRegistrationWindowOpen(): bool
+    public function isRegistrationWindowOpen(int $jalaliYear, int $jalaliMonth): bool
     {
-        return Jalali::isWithinActivationWindow($this->jalali_year, $this->jalali_month, $this->activation_day);
+        return Jalali::isWithinActivationWindow($jalaliYear, $jalaliMonth, $this->activation_day);
     }
 }

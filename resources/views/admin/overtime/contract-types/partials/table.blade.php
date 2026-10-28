@@ -43,7 +43,7 @@
                     <td class="px-5 py-3.5">
                         @if ($ceiling)
                             <span class="font-mono text-xs text-ink/60">{{ __('روز') }} {{ $ceiling->activation_day }}</span>
-                            @if ($ceiling->isRegistrationWindowOpen())
+                            @if ($ceiling->isRegistrationWindowOpen($year, $month))
                                 <span class="ms-1 rounded-full border border-pine/30 bg-pine-100 px-2 py-0.5 text-[11px] font-medium text-pine">{{ __('باز') }}</span>
                             @else
                                 <span class="ms-1 rounded-full border border-line bg-surface px-2 py-0.5 text-[11px] font-medium text-ink/50">{{ __('بسته') }}</span>

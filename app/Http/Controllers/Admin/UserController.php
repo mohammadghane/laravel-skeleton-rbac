@@ -6,7 +6,9 @@ use App\Http\Controllers\Concerns\BulkDeletes;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UserRequest;
 use App\Models\AuditLog;
+use App\Models\Deputy;
 use App\Models\Role;
+use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,6 +40,14 @@ class UserController extends Controller
             ->when($currentUser->is_agency, fn ($q) => $q->where('agency_id', $currentUser->id))
             ->when(!$currentUser->isAdmin(), fn ($q) => $q->where('center_id', $currentUser->center_id))
             ->when($request->filled('filters.gender'), fn ($q) => $q->where('gender', $request->input('filters.gender')))
+            ->when($request->filled('filters.unit_id'), fn ($q) => $q->where('unit_id', $request->input('filters.unit_id')))
+            ->when($request->filled('filters.deputy_id'), function ($q) use ($request) {
+                $deputyId = $request->input('filters.deputy_id');
+                $q->where(function ($scope) use ($deputyId) {
+                    $scope->where('deputy_id', $deputyId)
+                        ->orWhereHas('unit', fn ($unit) => $unit->where('deputy_id', $deputyId));
+                });
+            })
             // جست‌وجوی آزاد روی نام، نام خانوادگی، نام کاربری، کد پرسنلی، موبایل و کد ملی.
             // ورودی پیش‌تر توسط میدل‌ور NormalizePersianInput یکسان شده، پس تایپ با کیبورد
             // عربی یا ارقام فارسی هم نتیجه می‌دهد.
@@ -68,12 +78,14 @@ class UserController extends Controller
 
         $perPageOptions = self::PER_PAGE_OPTIONS;
         $perPage = $this->perPage($request);
+        $deputies = Deputy::orderBy('title')->get(['id', 'title']);
+        $units = Unit::orderBy('title')->get(['id', 'title']);
 
         if ($request->ajax() && $request->boolean('rows_only')) {
             return view('admin.users.partials.table', compact('users', 'perPageOptions', 'perPage'));
         }
 
-        return view('admin.users.index', compact('users', 'perPageOptions', 'perPage'));
+        return view('admin.users.index', compact('users', 'perPageOptions', 'perPage', 'deputies', 'units'));
     }
 
     /** گزینه‌های مجاز «تعداد در هر صفحه». */

@@ -154,6 +154,7 @@ Route::middleware(['web', 'auth'])->prefix('admin/overtime')->name('admin.overti
         Route::put('personnel/{personnel}/excess', [OvertimePeriodController::class, 'storeExcessForPersonnel'])->name('periods.excess.personnel.store');
         // ارسال گروهی به معاونت - باید پیش از مسیر پارامتری بیاید.
         Route::post('periods/bulk-submit', [OvertimePeriodController::class, 'bulkSubmit'])->name('periods.bulk-submit');
+        Route::post('periods/bulk-deputy-submit', [OvertimePeriodController::class, 'bulkDeputySubmit'])->name('periods.bulk-deputy-submit');
         Route::post('periods/bulk-ceo-approve', [OvertimePeriodController::class, 'bulkCeoApprove'])->name('periods.bulk-ceo-approve');
         Route::post('periods/{period}/submit', [OvertimePeriodController::class, 'submit'])->name('periods.submit');
         Route::put('periods/{period}/excess', [OvertimePeriodController::class, 'storeExcess'])->name('periods.excess.store');
